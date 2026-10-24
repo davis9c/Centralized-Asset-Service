@@ -80,7 +80,7 @@ func (s *Service) authenticateAdmin(r *http.Request) (actor,error) {
 	var localAdmin bool
 	err=s.db.QueryRow(r.Context(),`SELECT EXISTS(SELECT 1 FROM cas_admins WHERE user_id=$1 AND role='SUPER_ADMIN')`,user.ID).Scan(&localAdmin)
 	if err!=nil{return actor{},err}
-	if !localAdmin&&!user.Super{return actor{},fmt.Errorf("forbidden")}
+	if !localAdmin&&!user.SuperAdmin{return actor{},fmt.Errorf("forbidden")}
 	return actor{Admin:true,UserID:user.ID},nil
 }
 func (s *Service) upload(w http.ResponseWriter,r *http.Request,a actor) {
