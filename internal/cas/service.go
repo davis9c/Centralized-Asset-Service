@@ -37,7 +37,7 @@ func (s *Service) route(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if strings.HasPrefix(r.URL.Path,"/api/v1/admin/") { a,err=s.authenticateAdmin(r) } else { a,err=s.authenticateApp(r) }
 	if err != nil { if err.Error()=="forbidden" { fail(w,403,"forbidden") } else { fail(w,401,"unauthorized") }; return }
-	r = r.WithContext(contextWithActor(r,a))
+	r = contextWithActor(r,a)
 	switch {
 	case r.Method==http.MethodPost && r.URL.Path=="/api/v1/assets": s.upload(w,r,a)
 	case strings.HasPrefix(r.URL.Path,"/api/v1/assets/"): s.assetRoutes(w,r,a)
