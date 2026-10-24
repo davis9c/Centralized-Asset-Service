@@ -3,89 +3,305 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>CAS Tester</title>
+  <meta name="color-scheme" content="light">
+  <title>CAS Tester · Centralized Asset Service</title>
   <style>
-    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#182720;background:#f3f7f4}*{box-sizing:border-box}body{margin:0}.wrap{max-width:850px;margin:48px auto;padding:0 20px 64px}.brand{font-size:12px;color:#61736a;font-weight:750;letter-spacing:1.2px;text-transform:uppercase}.brand a{color:#246c55;text-decoration:none}h1{font-size:32px;letter-spacing:-1px;margin:18px 0 8px}.lead{color:#63746c;line-height:1.6;margin:0 0 26px}.card{background:#fff;border:1px solid #dfe9e3;border-radius:16px;padding:22px;margin:16px 0;box-shadow:0 5px 18px #163c2808}h2{font-size:16px;margin:0 0 16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:grid;gap:7px}.field.full{grid-column:1/-1}label{font-size:12px;font-weight:700;color:#506158}input{height:43px;border:1px solid #d8e3dc;border-radius:9px;padding:0 12px;font:inherit;font-size:14px;outline:none}input:focus{border-color:#278365;box-shadow:0 0 0 3px #27836520}button{height:42px;padding:0 15px;border:0;border-radius:9px;background:#126b53;color:white;font:inherit;font-weight:700;font-size:13px;cursor:pointer}button:hover{background:#0c5844}button:disabled{opacity:.55;cursor:wait}.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}.ack{display:flex;align-items:flex-start;gap:9px;color:#687970;font-size:12px;line-height:1.45;margin-top:14px}.ack input{width:16px;height:16px;min-width:16px;margin:0}.muted{font-size:12px;color:#78877f;line-height:1.55;margin:11px 0 0}.warning{border:1px solid #f0dcb2;background:#fff9e9;color:#76591c;padding:12px;border-radius:10px;font-size:12px;line-height:1.5}.status{font-size:13px;color:#55675e}.notice{display:none;margin-top:14px;padding:11px 13px;border-radius:9px;font-size:13px;line-height:1.45}.notice.show{display:block}.notice.error{background:#fff0ee;color:#903b32}.notice.success{background:#eaf7ef;color:#236044}.log{background:#10251d;color:#cbe3d5;border-radius:11px;padding:14px;min-height:70px;max-height:320px;overflow:auto;font:12px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}.log:empty:before{content:"Hasil tes akan muncul di sini.";color:#82988c}.identity{font-size:13px;color:#295c49}.identity strong{font-weight:750}.footer{margin-top:22px;text-align:center;font-size:11px;color:#8a9890}
-    @media(max-width:620px){.wrap{margin:26px auto}.grid{grid-template-columns:1fr}.field.full{grid-column:auto}h1{font-size:27px}}
+    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#172820;background:#f2f6f3;font-synthesis:none}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% 0,#d9eee5 0,transparent 30%),#f2f6f3}
+    .wrap{max-width:1060px;margin:auto;padding:26px 22px 64px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .top-actions{display:flex;align-items:center;gap:10px}.brand{display:flex;align-items:center;gap:10px;color:#264c3e;text-decoration:none;font-size:12px;font-weight:750;letter-spacing:.6px}.admin-link{color:#246c55;text-decoration:none;font-size:11px;font-weight:700}.admin-link:hover{text-decoration:underline}
+    .mark{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:#116b55;color:#fff;font-size:12px}
+    .tag{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid #dce7e1;background:#fff;border-radius:999px;font-size:11px;color:#61736a}
+    .tag i{width:7px;height:7px;border-radius:50%;background:#d59a36}.tag.ready i{background:#27a273}
+    .hero{padding:34px 0 22px}.eyebrow{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#50806c;text-transform:uppercase}
+    h1{font-size:34px;letter-spacing:-1.3px;margin:8px 0}.lead{margin:0;color:#65766d;line-height:1.6;max-width:680px;font-size:14px}
+    .layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:18px;align-items:start}
+    .stack{display:grid;gap:16px}.card{background:#fff;border:1px solid #e0e9e4;border-radius:15px;padding:20px;box-shadow:0 5px 20px #173c2808}
+    .card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}.card-head h2{font-size:15px;margin:0;letter-spacing:-.2px}.card-head p{font-size:11px;color:#87948e;margin:5px 0 0;line-height:1.45}
+    .step{font-size:10px;font-weight:800;color:#24775b;background:#e9f6ef;border-radius:7px;padding:6px 8px;white-space:nowrap}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.field{display:grid;gap:7px;min-width:0}.field.full{grid-column:1/-1}
+    label{font-size:11px;font-weight:700;color:#53655b}input,textarea{width:100%;border:1px solid #d8e3dc;border-radius:9px;background:#fff;font:inherit;font-size:13px;color:#20352b;outline:none}
+    input{height:42px;padding:0 11px}textarea{padding:10px 11px;min-height:110px;resize:vertical;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+    input:focus,textarea:focus{border-color:#278365;box-shadow:0 0 0 3px #27836520}input[type=file]{height:auto;padding:9px;font-size:12px}
+    .keyline{display:flex;gap:7px}.keyline input{flex:1;min-width:0}.iconbtn{flex:none;width:42px;padding:0}
+    button,.button{height:40px;padding:0 13px;border:0;border-radius:9px;background:#126b53;color:white;font:inherit;font-size:12px;font-weight:750;cursor:pointer;white-space:nowrap}
+    button:hover,.button:hover{background:#0c5844}button:disabled{opacity:.5;cursor:not-allowed}
+    button.secondary,.button.secondary{background:#f1f5f2;color:#40554a;border:1px solid #dce6e0}button.secondary:hover{background:#e8efeb}
+    button.ghost{background:transparent;color:#5d7166;padding:0 8px}button.ghost:hover{background:#f0f5f2}
+    button.danger{background:#fff4f1;color:#974439;border:1px solid #f0d6d0}button.danger:hover{background:#ffe9e4}
+    .actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:15px}.micro{font-size:10px;color:#86938c;line-height:1.55;margin:11px 0 0}
+    .warning{display:flex;gap:10px;padding:12px;border:1px solid #eedfb9;background:#fffaf0;color:#765b22;border-radius:10px;font-size:11px;line-height:1.55}
+    .warning b{display:block;margin-bottom:2px}.ack{display:flex;gap:9px;align-items:flex-start;margin:13px 0;color:#5f7067;font-size:11px;line-height:1.5}
+    .ack input{width:16px;height:16px;min-width:16px;margin:1px 0 0;accent-color:#116b55}
+    .notice{display:none;padding:11px 12px;margin-top:12px;border-radius:9px;font-size:12px;line-height:1.5}.notice.show{display:block}
+    .notice.error{background:#fff0ee;color:#903b32;border:1px solid #f1d5d0}.notice.success{background:#eaf7ef;color:#236044;border:1px solid #cce8d7}.notice.info{background:#eef5fb;color:#365d7a;border:1px solid #d5e5f1}
+    .connected{display:none;align-items:center;gap:8px;padding:10px 11px;border:1px solid #cfe8d9;background:#f1faf4;border-radius:9px;font-size:11px;color:#286248;margin-top:14px;overflow-wrap:anywhere}.connected.show{display:flex}.connected strong{font-size:12px}
+    .results{display:grid;gap:8px}.result{display:grid;grid-template-columns:22px 1fr auto;gap:9px;align-items:center;padding:10px;border:1px solid #e9eeeb;border-radius:9px}
+    .result .ico{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#eef2ef;color:#85928b;font-size:11px;font-weight:800}
+    .result.ok .ico{background:#e8f6ed;color:#23734e}.result.fail .ico{background:#fff0ee;color:#a64539}.result.running .ico{background:#edf4fb;color:#47729a}
+    .result strong{display:block;font-size:11px}.result small{display:block;color:#829087;font-size:10px;margin-top:3px;overflow-wrap:anywhere}
+    .result em{font-size:10px;color:#87948d;font-style:normal}.result.ok em{color:#27734f}.result.fail em{color:#a64539}
+    .assetbox{padding:12px;border:1px solid #e3ebe6;background:#f8fbf9;border-radius:10px;margin-top:12px}
+    .assetbox .id{font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere;color:#355a49}
+    .assetmeta{display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:#75847c;margin-top:7px}
+    .log{background:#10251d;color:#cbe3d5;border-radius:10px;padding:13px;min-height:90px;max-height:300px;overflow:auto;font:10px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+    .log:empty:before{content:"Belum ada aktivitas.";color:#82988c}.foot{margin:24px 0 0;text-align:center;font-size:10px;color:#8b9891}
+    .hidden{display:none!important}
+    @media(max-width:780px){.layout{grid-template-columns:1fr}.wrap{padding:20px 14px 48px}.hero{padding:26px 0 18px}.card{padding:17px}}
+    @media(max-width:540px){.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.topbar{align-items:flex-start}.tag{font-size:10px}h1{font-size:29px}.actions button{flex:1}}
   </style>
 </head>
 <body>
   <main class="wrap">
-    <div class="brand"><a href="#" onclick="history.back();return false">CAS Admin</a> / Integration Tester</div>
-    <h1>CAS Tester</h1>
-    <p class="lead">Periksa koneksi, application key, upload, metadata, dan download dari integrasi aplikasi Anda.</p>
-    <section class="card">
-      <h2>Koneksi aplikasi</h2>
-      <div class="grid">
-        <div class="field"><label for="baseUrl">Base URL CAS</label><input id="baseUrl" type="url" placeholder="http://10.10.10.18:7000" autocomplete="url" required></div>
-        <div class="field"><label for="appKey">Application key</label><input id="appKey" type="password" autocomplete="off" spellcheck="false" placeholder="Tempel key aplikasi" required></div>
+    <div class="topbar"><div class="brand"><span class="mark">CAS</span><span>CAS <span style="color:#91a198">/</span> TESTER</span></div><div class="top-actions"><a id="adminLink" class="admin-link hidden" href="#" target="_blank" rel="noopener">Buka dashboard</a><span id="connectionTag" class="tag"><i></i><span>Belum terhubung</span></span></div></div>
+    <header class="hero"><div class="eyebrow">Integration workspace</div><h1>CAS Tester</h1><p class="lead">Validasi koneksi dan application key, lalu uji upload, pembacaan metadata, dan download seperti alur integrasi aplikasi.</p></header>
+    <div class="layout">
+      <div class="stack">
+        <section class="card">
+          <div class="card-head"><div><h2>Koneksi aplikasi</h2><p>Data key hanya berada di memori halaman dan tidak dimasukkan ke laporan.</p></div><span class="step">01</span></div>
+          <div class="grid">
+            <div class="field full"><label for="baseUrl">Base URL CAS</label><input id="baseUrl" type="url" placeholder="https://cas.example.com" autocomplete="url" required></div>
+            <div class="field full"><label for="appKey">Application key</label><div class="keyline"><input id="appKey" type="password" autocomplete="off" spellcheck="false" placeholder="Tempel application key" required><button id="toggleKey" type="button" class="secondary iconbtn" aria-label="Tampilkan application key">◉</button></div></div>
+          </div>
+          <div class="actions"><button id="connect">Periksa koneksi &amp; key</button><button id="disconnect" class="secondary hidden" type="button">Putuskan</button></div>
+          <div id="connectNotice" class="notice" role="status" aria-live="polite"></div>
+          <div id="connected" class="connected"><span>●</span><div><strong id="appName"></strong><div id="appIdentity"></div></div></div>
+        </section>
+        <section class="card">
+          <div class="card-head"><div><h2>Konfigurasi aset uji</h2><p>Pilih file sungguhan atau biarkan kosong untuk membuat file contoh kecil.</p></div><span class="step">02</span></div>
+          <div class="grid">
+            <div class="field full"><label for="testFile">File yang akan diunggah <span style="font-weight:400;color:#89968f">(opsional)</span></label><input id="testFile" type="file" disabled></div>
+            <div class="field full"><label for="metadata">Metadata JSON</label><textarea id="metadata" spellcheck="false" disabled>{
+  "source": "cas-tester",
+  "purpose": "integration-test"
+}</textarea></div>
+          </div>
+          <p class="micro">Metadata harus berupa objek JSON. Isi file dan key tidak pernah disertakan dalam laporan.</p>
+        </section>
+        <section class="card">
+          <div class="card-head"><div><h2>Jalankan pemeriksaan</h2><p>Upload membuat aset yang tersimpan di CAS.</p></div><span class="step">03</span></div>
+          <div class="warning"><span>!</span><div><b>Perhatian: file uji tidak dihapus otomatis</b>CAS belum melakukan purge fisik. Setelah tes, Anda dapat mengajukan penghapusan logis dari halaman ini; file tetap berada di storage sampai proses purge tersedia.</div></div>
+          <label class="ack"><input id="ackStorage" type="checkbox" disabled><span>Saya memahami bahwa upload membuat aset tersimpan dan menggunakan environment development/test.</span></label>
+          <div class="actions"><button id="runTest" disabled>Jalankan tes integrasi</button><button id="cancelTest" class="danger hidden" type="button">Batalkan</button></div>
+          <div id="testNotice" class="notice" role="status" aria-live="polite"></div>
+          <div id="assetBox" class="assetbox hidden"><div class="id">Asset ID: <span id="assetId"></span></div><div class="assetmeta"><span id="assetFacts"></span><span id="assetState"></span></div><div class="actions"><button id="downloadAsset" class="secondary" type="button">Unduh lagi</button><button id="requestDelete" class="danger" type="button">Ajukan penghapusan logis</button></div><p class="micro">Penghapusan logis mengubah status aset. File fisik tidak langsung dihapus.</p></div>
+        </section>
       </div>
-      <div class="row"><button id="connect">Periksa koneksi &amp; key</button><span id="identity" class="identity"></span></div>
-      <div id="connectNotice" class="notice" role="status"></div>
-      <p class="muted">Key hanya disimpan sementara di memori halaman dan tidak ditulis ke log hasil tes.</p>
-    </section>
-    <section class="card">
-      <h2>Uji alur file</h2>
-      <div class="warning">Uji ini mengunggah satu file teks ke CAS. File uji akan tetap tersimpan; CAS saat ini belum memiliki purge fisik otomatis.</div>
-      <label class="ack"><input id="ackStorage" type="checkbox"><span>Saya mengerti bahwa uji upload membuat aset yang menetap di storage. Saya menggunakan CAS development/test.</span></label>
-      <div class="row"><button id="runTest" disabled>Jalankan tes upload &amp; download</button><span id="testStatus" class="status">Hubungkan application key terlebih dahulu.</span></div>
-    </section>
-    <section class="card">
-      <h2>Hasil pemeriksaan</h2>
-      <div id="log" class="log" aria-live="polite"></div>
-    </section>
-    <div class="footer">CAS Tester berjalan lokal di browser. Gunakan application key untuk environment development.</div>
+      <aside class="stack">
+        <section class="card">
+          <div class="card-head"><div><h2>Hasil pemeriksaan</h2><p id="summary">Belum ada tes dijalankan.</p></div><button id="downloadReport" class="secondary" type="button" disabled>Laporan</button></div>
+          <div id="results" class="results"></div>
+          <div class="actions"><button id="copyReport" class="ghost" type="button" disabled>Salin ringkasan</button><button id="clearResults" class="ghost" type="button">Bersihkan</button></div>
+        </section>
+        <section class="card">
+          <div class="card-head"><div><h2>Log aktivitas</h2><p>Detail respons dan request ID untuk membantu diagnosis.</p></div><button id="clearLog" class="ghost" type="button">Hapus log</button></div>
+          <div id="log" class="log" aria-live="polite"></div>
+        </section>
+        <p class="micro">Tester dijalankan langsung dari browser. Jika koneksi gagal, pastikan base URL dapat dijangkau dan CORS CAS mengizinkan origin <code>null</code> untuk file lokal.</p>
+      </aside>
+    </div>
+    <footer class="foot">Centralized Asset Service · CAS Tester tidak menyimpan application key setelah halaman ditutup.</footer>
   </main>
   <script>
     (() => {
-      let key = '';
-      let base = '';
-      let connected = false;
       const $ = id => document.getElementById(id);
-      const log = $('log');
-      function write(message, result='OK') { log.textContent += `[${new Date().toLocaleTimeString()}] ${result} — ${message}\n`; log.scrollTop=log.scrollHeight; }
-      function setNotice(text, type) { const el=$('connectNotice');el.textContent=text;el.className=`notice show ${type}`; }
+      let base = '', key = '', app = null, connected = false, activeController = null, assetCleanupRequested = true;
+      let checks = [], report = null, lastDownloadedBlob = null, lastFileName = '';
+
+      function log(message, level='INFO') {
+        const node = $('log');
+        node.textContent += `[${new Date().toLocaleTimeString()}] ${level} · ${message}\n`;
+        node.scrollTop = node.scrollHeight;
+      }
+      function notice(id, message, kind) {
+        const node=$(id); node.textContent=message; node.className=`notice show ${kind}`;
+      }
       function normalizeBase(value) {
-        const url=new URL(value.trim());
-        if (!['http:','https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || (url.pathname !== '/' && url.pathname !== '')) throw new Error('Masukkan origin CAS yang valid, tanpa path, query, atau fragment.');
+        let url;
+        try { url=new URL(value.trim()); } catch { throw new Error('Masukkan Base URL CAS yang valid.'); }
+        if (!['http:','https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || (url.pathname !== '/' && url.pathname !== '')) throw new Error('Gunakan origin CAS saja, tanpa path, query, atau fragment.');
         return url.origin;
       }
-      async function request(path, options={}) {
-        let response;
-        try { response=await fetch(`${base}${path}`,{...options,headers:{...(options.headers||{}),'X-Application-Key':key}}); }
-        catch { throw new Error('Request tidak dapat dijangkau browser. Periksa base URL, jaringan, dan konfigurasi CORS CAS untuk Origin null.'); }
-        let body=null;if((response.headers.get('Content-Type')||'').includes('application/json')){try{body=await response.json()}catch{body=null}}
-        if(!response.ok)throw new Error(body?.message||`HTTP ${response.status}`);
-        return {response,body};
+      function setConnected(value) {
+        connected=value;
+        $('connectionTag').classList.toggle('ready',value);
+        $('connectionTag').lastElementChild.textContent=value?'Terhubung':'Belum terhubung';
+        $('baseUrl').disabled=value; $('appKey').disabled=value; $('toggleKey').disabled=value;
+        $('connect').classList.toggle('hidden',value); $('disconnect').classList.toggle('hidden',!value);
+        $('adminLink').classList.toggle('hidden',!value);if(value)$('adminLink').href=base+'/admin/';
+        $('testFile').disabled=!value; $('metadata').disabled=!value; $('ackStorage').disabled=!value;
+        updateRunButton();
+        $('connected').classList.toggle('show',value);
       }
-      $('connect').addEventListener('click', async () => {
-        const button=$('connect');button.disabled=true;$('identity').textContent='';
+      function updateRunButton() { $('runTest').disabled=!(connected&&$('ackStorage').checked&&assetCleanupRequested&&!activeController); }
+      async function timedFetch(url, options={}, signal=null) {
+        const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(new Error('Request timeout (120 detik).')),120000);
+        if (signal) {
+          if (signal.aborted) controller.abort(signal.reason);
+          else signal.addEventListener('abort',()=>controller.abort(signal.reason),{once:true});
+        }
+        try { return await fetch(url,{...options,signal:controller.signal}); }
+        catch(error) {
+          if (controller.signal.aborted) throw new Error(controller.signal.reason?.message||'Request dibatalkan.');
+          throw new Error('Request tidak dapat dijangkau browser. Periksa Base URL, jaringan, dan konfigurasi CORS CAS.');
+        } finally { clearTimeout(timeout); }
+      }
+      async function api(path, options={}, useKey=true, signal=null) {
+        const headers={...(options.headers||{})};
+        if(useKey) headers['X-Application-Key']=key;
+        const response=await timedFetch(base+path,{...options,headers},signal);
+        const requestId=response.headers.get('X-Request-ID')||'—';
+        const type=response.headers.get('Content-Type')||'';
+        let body=null;
+        if(type.includes('application/json')) { try { body=await response.json(); } catch { throw new Error(`Respons JSON tidak valid (HTTP ${response.status}, request ${requestId}).`); } }
+        if(!response.ok) throw new Error(`${body?.message||`HTTP ${response.status}`} · request ${requestId}`);
+        return {response,body,requestId};
+      }
+      function renderChecks() {
+        const root=$('results'); root.replaceChildren();
+        for(const check of checks) {
+          const row=document.createElement('div'); row.className=`result ${check.state}`;
+          const icon=document.createElement('span'); icon.className='ico'; icon.textContent=check.state==='ok'?'✓':check.state==='fail'?'×':check.state==='running'?'…':'·';
+          const details=document.createElement('div'), title=document.createElement('strong'), sub=document.createElement('small'), state=document.createElement('em');
+          title.textContent=check.name;sub.textContent=check.detail||'Menunggu';state.textContent=check.state==='ok'?'Berhasil':check.state==='fail'?'Gagal':check.state==='running'?'Berjalan':'Menunggu';
+          details.append(title,sub);row.append(icon,details,state);root.append(row);
+        }
+        const failed=checks.some(c=>c.state==='fail'), pending=checks.some(c=>c.state==='running'||c.state==='wait');
+        $('summary').textContent=checks.length?(pending?'Pemeriksaan sedang berjalan…':failed?'Ada pemeriksaan yang gagal.':'Semua pemeriksaan selesai.'):'Belum ada tes dijalankan.';
+        const enabled=checks.length>0&&!pending;
+        $('downloadReport').disabled=!enabled;$('copyReport').disabled=!enabled;
+      }
+      function setCheck(name,state,detail='') {
+        let item=checks.find(c=>c.name===name);
+        if(!item){item={name,state,detail};checks.push(item)}else{item.state=state;item.detail=detail}
+        if(report) report.checks=checks.map(c=>({...c}));
+        renderChecks();
+      }
+      function stable(value) {
+        if(Array.isArray(value))return value.map(stable);
+        if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map(k=>[k,stable(value[k])]));
+        return value;
+      }
+      function parseMetadata() {
+        let value;try{value=JSON.parse($('metadata').value)}catch{throw new Error('Metadata harus berupa JSON yang valid.')}
+        if(!value||Array.isArray(value)||typeof value!=='object')throw new Error('Metadata harus berupa objek JSON, bukan array atau nilai tunggal.');
+        return value;
+      }
+      function fixtureFile() {
+        const text=`CAS integration test\nCreated: ${new Date().toISOString()}\nThis file was generated by cas-tester.html.\n`;
+        return new File([text],`cas-test-${Date.now()}.txt`,{type:'text/plain'});
+      }
+      async function sha256(blob) {
+        if(!globalThis.crypto?.subtle)return '';
+        const digest=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());
+        return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
+      }
+      function clearChecks(resetAsset=true) {
+        checks=[];report=null;
+        if(resetAsset){lastDownloadedBlob=null;lastFileName='';$('assetBox').classList.add('hidden');$('requestDelete').disabled=false;$('requestDelete').textContent='Ajukan penghapusan logis'}
+        $('testNotice').className='notice';
+        $('summary').textContent='Belum ada tes dijalankan.';$('results').replaceChildren();
+        $('downloadReport').disabled=true;$('copyReport').disabled=true;
+      }
+      function downloadBlob(blob,name) {
+        const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+      }
+      $('toggleKey').addEventListener('click',()=>{const input=$('appKey'),visible=input.type==='password';input.type=visible?'text':'password';$('toggleKey').setAttribute('aria-label',visible?'Sembunyikan application key':'Tampilkan application key')});
+      $('connect').addEventListener('click',async()=>{
+        $('connect').disabled=true;$('connectNotice').className='notice';
         try {
-          base=normalizeBase($('baseUrl').value);key=$('appKey').value.trim();if(!key)throw new Error('Application key wajib diisi.');
-          const health=await fetch(`${base}/healthz`);if(!health.ok)throw new Error(`Health check gagal (HTTP ${health.status}).`);
-          write('CAS health check terjangkau.');
-          const result=await request('/api/v1/applications/me');
-          const app=result.body.data;if(!app?.application_id)throw new Error('Response identitas aplikasi tidak valid.');
-          connected=true;$('identity').textContent=`Terhubung: ${app.name} (${app.application_id}) · ${app.status}`;
-          $('appKey').value='';$('appKey').disabled=true;$('baseUrl').disabled=true;$('connect').hidden=true;
-          $('runTest').disabled=!$('ackStorage').checked;setNotice('Koneksi dan application key valid.','success');write(`Application key valid untuk ${app.application_id}.`);
-          $('testStatus').textContent='Siap menjalankan uji upload.';
-        } catch(error) { key='';connected=false;setNotice(error.message,'error');write(error.message,'GAGAL'); }
-        finally {button.disabled=false;}
+          base=normalizeBase($('baseUrl').value);key=$('appKey').value.trim();
+          if(!key)throw new Error('Application key wajib diisi.');
+          if(key.length<32)throw new Error('Application key terlihat terlalu pendek. Periksa kembali key yang disalin.');
+          const health=await api('/healthz',{},false);
+          log(`Health check berhasil (HTTP ${health.response.status}, request ${health.requestId}).`);
+          const identity=await api('/api/v1/applications/me');
+          app=identity.body?.data;
+          if(!app?.application_id)throw new Error('Respons identitas aplikasi tidak memuat application_id.');
+          if(app.status!=='ACTIVE')throw new Error(`Aplikasi berstatus ${app.status}; application key tidak dapat dipakai untuk upload.`);
+          $('appName').textContent=app.name||app.application_id;
+          $('appIdentity').textContent=`${app.application_id} · ${app.status} · request ${identity.requestId}`;
+          $('connectNotice').className='notice';
+          setConnected(true);clearChecks();
+          notice('connectNotice','Koneksi CAS dan application key valid.','success');
+          log(`Application key valid untuk ${app.application_id} (${identity.requestId}).`,'OK');
+        } catch(error) {
+          key='';app=null;setConnected(false);notice('connectNotice',error.message,'error');log(error.message,'GAGAL');
+        } finally { $('connect').disabled=false; }
       });
-      $('ackStorage').addEventListener('change',()=>{$('runTest').disabled=!(connected&&$('ackStorage').checked)});
+      $('disconnect').addEventListener('click',()=>{if(!assetCleanupRequested){notice('testNotice','Ajukan penghapusan logis aset uji terlebih dahulu agar asset ID tidak hilang dari sesi ini.','info');return}key='';base='';app=null;$('appKey').value='';$('appKey').type='password';$('baseUrl').disabled=false;$('appKey').disabled=false;$('baseUrl').value='';$('testFile').value='';$('metadata').value='{}';$('ackStorage').checked=false;setConnected(false);clearChecks();$('appName').textContent='';$('appIdentity').textContent='';$('connectNotice').className='notice';log('Koneksi diputus; application key dibersihkan dari memori.');});
+      $('ackStorage').addEventListener('change',updateRunButton);
       $('runTest').addEventListener('click',async()=>{
-        const button=$('runTest');button.disabled=true;$('testStatus').textContent='Tes sedang berjalan…';
-        const content=`CAS integration test ${new Date().toISOString()}\n`;const filename=`cas-test-${Date.now()}.txt`;let assetId='';
+        if(!connected||!$('ackStorage').checked)return;
+        if(!assetCleanupRequested){notice('testNotice','Ajukan penghapusan logis untuk aset uji sebelumnya sebelum menjalankan upload baru.','info');return}
+        let metadata,file;
+        try { metadata=parseMetadata();file=$('testFile').files[0]||fixtureFile(); }
+        catch(error){notice('testNotice',error.message,'error');return}
+        clearChecks();report={started_at:new Date().toISOString(),base_url:base,application_id:app.application_id,application_name:app.name||app.application_id,file_name:file.name,file_size:file.size,checks:[],asset_id:''};
+        activeController=new AbortController();updateRunButton();$('disconnect').disabled=true;$('clearResults').disabled=true;$('cancelTest').classList.remove('hidden');$('cancelTest').disabled=true;$('testNotice').className='notice';$('assetBox').classList.add('hidden');$('requestDelete').disabled=true;
+        let uploaded=false;
         try {
-          const data=new FormData();data.append('file',new Blob([content],{type:'text/plain'}),filename);data.append('metadata',JSON.stringify({source:'cas-tester',purpose:'integration-test'}));
-          const uploaded=await request('/api/v1/assets',{method:'POST',body:data});assetId=uploaded.body?.data?.asset_id;if(!assetId)throw new Error('Upload tidak mengembalikan asset_id.');write(`Upload berhasil. Asset ID: ${assetId}`);
-          const metadata=await request(`/api/v1/assets/${encodeURIComponent(assetId)}`);if(metadata.body?.data?.asset_id!==assetId)throw new Error('Asset metadata tidak cocok.');write('Baca metadata berhasil.');
-          const downloaded=await request(`/api/v1/assets/${encodeURIComponent(assetId)}/content`);const text=await downloaded.response.text();if(text!==content)throw new Error('Isi hasil download tidak sama dengan file uji.');write('Download dan pemeriksaan isi berhasil.');
-          $('testStatus').textContent=`Semua tes berhasil · asset ${assetId}`;setNotice(`Tes berhasil. Aset ${assetId} tersimpan di CAS.`,'success');
-        } catch(error) {write(error.message,'GAGAL');$('testStatus').textContent=assetId?`Tes gagal setelah upload · asset ${assetId}`:'Tes gagal';setNotice(`${error.message}${assetId?` Asset yang sudah terunggah: ${assetId}.`:''}`,'error');}
-        finally {button.disabled=false;}
+          setCheck('Validasi koneksi','ok',`${app.name||app.application_id} (${app.application_id})`);
+          setCheck('Upload file','running',`${file.name} · ${file.size.toLocaleString()} byte`);
+          const form=new FormData();form.append('file',file,file.name);form.append('metadata',JSON.stringify(metadata));
+          const upload=await api('/api/v1/assets',{method:'POST',body:form},true,activeController.signal);
+          const data=upload.body?.data,assetId=data?.asset_id;
+          if(!assetId)throw new Error('Upload tidak mengembalikan asset_id.');
+          uploaded=true;assetCleanupRequested=false;$('cancelTest').disabled=false;report.asset_id=assetId;report.upload_request_id=upload.requestId;
+          $('assetId').textContent=assetId;lastFileName=file.name;$('assetFacts').textContent=`${file.name} · ${file.size.toLocaleString()} byte · ${data.mime_type||file.type||'application/octet-stream'}`;$('assetState').textContent=data.asset_status||'ACTIVE';$('assetBox').classList.remove('hidden');
+          setCheck('Upload file','ok',`HTTP ${upload.response.status} · ${upload.requestId}`);log(`Upload berhasil: ${assetId} (${upload.requestId}).`,'OK');
+          setCheck('Verifikasi metadata','running','Memeriksa filename, ukuran, checksum, dan metadata.');
+          const meta=await api(`/api/v1/assets/${encodeURIComponent(assetId)}`,{},true,activeController.signal),asset=meta.body?.data;
+          const checksMeta=[];
+          if(asset?.asset_id!==assetId)checksMeta.push('asset ID tidak cocok');
+          if(asset?.original_filename!==file.name)checksMeta.push('filename tidak cocok');
+          if(Number(asset?.size_bytes)!==file.size)checksMeta.push('ukuran tidak cocok');
+          if(data.checksum&&asset?.checksum!==data.checksum)checksMeta.push('checksum upload/metadata tidak cocok');
+          if(JSON.stringify(stable(asset?.metadata))!==JSON.stringify(stable(metadata)))checksMeta.push('metadata JSON tidak cocok');
+          if(checksMeta.length)throw new Error(checksMeta.join('; '));
+          $('assetState').textContent=asset.asset_status||'ACTIVE';report.metadata_request_id=meta.requestId;report.checksum=asset.checksum;report.mime_type=asset.mime_type;
+          setCheck('Verifikasi metadata','ok',`Nama, ukuran, checksum, dan metadata cocok · ${meta.requestId}`);log(`Metadata tervalidasi (${meta.requestId}).`,'OK');
+          setCheck('Download dan integritas','running','Mengunduh kembali lalu membandingkan ukuran dan SHA-256.');
+          const content=await api(`/api/v1/assets/${encodeURIComponent(assetId)}/content`,{},true,activeController.signal);
+          const downloaded=await content.response.blob(),downloadHash=await sha256(downloaded),sourceHash=await sha256(file);
+          if(downloaded.size!==file.size)throw new Error(`Ukuran hasil download ${downloaded.size} byte, seharusnya ${file.size} byte.`);
+          if(downloadHash&&sourceHash&&downloadHash!==sourceHash)throw new Error('SHA-256 hasil download berbeda dari file sumber.');
+          lastDownloadedBlob=downloaded;report.download_request_id=content.requestId;report.download_sha256=downloadHash||null;
+          setCheck('Download dan integritas','ok',`Ukuran sama${downloadHash?' · SHA-256 cocok':''} · ${content.requestId}`);log(`Download dan integritas file cocok (${content.requestId}).`,'OK');
+          notice('testNotice',`Semua pemeriksaan berhasil. Aset uji ${assetId} masih tersimpan di CAS.`,'success');
+        } catch(error) {
+          const cancelled=activeController?.signal.aborted;
+          const running=checks.find(c=>c.state==='running');
+          if(running)setCheck(running.name,'fail',cancelled?'Dibatalkan':error.message);
+          if(report){report.error=error.message;report.finished_at=new Date().toISOString()}
+          notice('testNotice',`${cancelled?'Tes dibatalkan':error.message}${uploaded?' Aset yang sudah diunggah tetap tersimpan.':''}`,'error');
+          log(`${cancelled?'Tes dibatalkan':error.message}${uploaded?' · asset '+report.asset_id+' tetap tersimpan':''}`,'GAGAL');
+        } finally {
+          if(report&&!report.finished_at)report.finished_at=new Date().toISOString();
+          activeController=null;$('disconnect').disabled=false;$('clearResults').disabled=false;$('cancelTest').classList.add('hidden');$('cancelTest').disabled=false;$('requestDelete').disabled=assetCleanupRequested;updateRunButton();renderChecks();
+        }
       });
+      $('cancelTest').addEventListener('click',()=>activeController?.abort(new Error('Tes dibatalkan oleh pengguna.')));
+      $('downloadAsset').addEventListener('click',async()=>{const id=$('assetId').textContent;if(!id)return;const button=$('downloadAsset');button.disabled=true;try{const result=await api(`/api/v1/assets/${encodeURIComponent(id)}/content`);lastDownloadedBlob=await result.response.blob();downloadBlob(lastDownloadedBlob,lastFileName||`cas-download-${id}.bin`);log(`Aset ${id} diunduh ulang (${result.requestId}).`,'OK')}catch(error){notice('testNotice',error.message,'error');log(error.message,'GAGAL')}finally{button.disabled=false}});
+      $('requestDelete').addEventListener('click',async()=>{
+        const id=$('assetId').textContent;if(!id)return;
+        const button=$('requestDelete');button.disabled=true;
+        try{
+          const result=await api(`/api/v1/assets/${encodeURIComponent(id)}`,{method:'DELETE'});
+          const status=result.body?.data?.asset_status||'DELETE_PENDING';$('assetState').textContent=status;
+          notice('testNotice',`Penghapusan logis diajukan: ${status}. File fisik masih tersimpan sampai purge tersedia.`,'success');
+          log(`Permintaan penghapusan logis aset ${id}: ${status} (${result.requestId}).`,'OK');
+          button.disabled=true;button.textContent='Permintaan diajukan';
+          assetCleanupRequested=true;updateRunButton();
+          if(report){report.deletion_status=status;report.deletion_request_id=result.requestId}
+        }catch(error){notice('testNotice',error.message,'error');log(error.message,'GAGAL')}
+        finally{button.disabled=false}
+      });
+      function reportBlob(){return new Blob([JSON.stringify(report,null,2)],{type:'application/json'})}
+      $('downloadReport').addEventListener('click',()=>{if(!report)return;downloadBlob(reportBlob(),`cas-test-report-${new Date().toISOString().replaceAll(':','-')}.json`)});
+      $('copyReport').addEventListener('click',async()=>{if(!report)return;try{await navigator.clipboard.writeText(JSON.stringify(report,null,2));$('copyReport').textContent='Tersalin';setTimeout(()=>$('copyReport').textContent='Salin ringkasan',1400)}catch{notice('testNotice','Clipboard tidak tersedia; unduh laporan JSON sebagai gantinya.','info')}});
+      $('clearResults').addEventListener('click',()=>clearChecks(false));
+      $('clearLog').addEventListener('click',()=>{$('log').textContent=''});
     })();
   </script>
 </body>

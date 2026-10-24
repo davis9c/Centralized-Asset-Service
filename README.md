@@ -46,7 +46,7 @@ Untuk mencabut grant: `DELETE /api/v1/assets/{id}/grants?grant_id=...`. Untuk me
 
 Actions grant yang tersedia: `metadata.read`, `content.read`, `reference.read`, `reference.create`. Pemilik mendapat akses ke asetnya. Aplikasi penerima memerlukan grant aktif; saat aset menunggu penghapusan, akses penerima hanya berjalan jika ia juga memiliki reference aktif. Tambahkan `?inline=true` pada endpoint content untuk preview gambar, audio, video, dan PDF yang telah diotorisasi.
 
-CAS Tester menjalankan health check, memvalidasi application key, lalu (jika dicentang) membuat satu aset teks untuk menguji upload, metadata, dan download. Aset uji tidak dihapus otomatis karena purge fisik belum tersedia.
+CAS Tester menjalankan health check dan validasi application key, mendukung file pilihan atau file contoh, lalu memeriksa upload, metadata, ukuran, checksum SHA-256, serta download. Tester dapat mengekspor laporan JSON tanpa menyertakan application key dan mengajukan penghapusan logis untuk aset uji. Penghapusan logis tidak menghapus file fisik karena purge fisik belum tersedia; tester meminta penghapusan untuk aset sebelumnya sebelum mengizinkan upload uji berikutnya.
 
 ## Batas dan keputusan implementasi awal
 
