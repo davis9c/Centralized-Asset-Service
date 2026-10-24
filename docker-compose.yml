@@ -12,6 +12,7 @@ services:
       USERGATE_BASE_URL: ${USERGATE_BASE_URL:-https://usergate.sandalgurun.web.id/api/v1}
       USERGATE_API_KEY: ${USERGATE_API_KEY:-}
       CAS_MAX_UPLOAD_BYTES: ${CAS_MAX_UPLOAD_BYTES:-52428800}
+      CAS_TESTER_ORIGIN: ${CAS_TESTER_ORIGIN:-null}
     volumes:
       - cas_data:/data
     depends_on:

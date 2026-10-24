@@ -36,6 +36,12 @@ func (s *Service) Handler() http.Handler {
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 		_, _ = w.Write(adminHTML)
 	})
+	mux.HandleFunc("GET /downloads/cas-tester.html", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="cas-tester.html"`)
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = w.Write(casTesterHTML)
+	})
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" { http.NotFound(w, r); return }
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -44,7 +50,9 @@ func (s *Service) Handler() http.Handler {
 	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { writeJSON(w,200,map[string]any{"status":true,"data":map[string]string{"state":"ok"}}) })
 	mux.Handle("/api/v1/", http.HandlerFunc(s.route))
-	return requestID(securityHeaders(mux))
+	origin := strings.TrimSpace(os.Getenv("CAS_TESTER_ORIGIN"))
+	if origin == "" { origin = "null" }
+	return requestID(securityHeaders(cors(origin, mux)))
 }
 func (s *Service) route(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/admin/login" {
@@ -58,6 +66,7 @@ func (s *Service) route(w http.ResponseWriter, r *http.Request) {
 	r = contextWithActor(r,a)
 	switch {
 	case r.Method==http.MethodPost && r.URL.Path=="/api/v1/assets": s.upload(w,r,a)
+	case r.Method==http.MethodGet && r.URL.Path=="/api/v1/applications/me": s.applicationMe(w,r,a)
 	case strings.HasPrefix(r.URL.Path,"/api/v1/assets/"): s.assetRoutes(w,r,a)
 	case r.URL.Path=="/api/v1/admin/applications" && a.Admin: s.adminApplications(w,r)
 	case strings.HasPrefix(r.URL.Path,"/api/v1/admin/applications/") && a.Admin: s.adminApplication(w,r)

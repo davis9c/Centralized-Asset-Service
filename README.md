@@ -18,7 +18,7 @@ Tidak ada proses build atau server yang dijalankan selama penulisan ini. Jangan 
 - Pada login sukses pertama, CAS mencatat user tersebut sebagai `SUPER_ADMIN` lokal jika belum ada admin CAS. UserGate `SUPER_ADMIN` yang sudah ada juga tetap diterima.
 - API key UserGate tidak boleh dikirim ke browser.
 
-Dashboard manajemen aplikasi tersedia di `GET /admin/`. Dashboard dapat melihat aplikasi, mendaftarkan aplikasi baru, dan mengubah statusnya. Application key baru hanya tampil satu kali setelah dibuat.
+Dashboard manajemen aplikasi tersedia di `GET /admin/`. Dashboard dapat melihat aplikasi, mendaftarkan aplikasi baru, mengubah status, dan mengunduh CAS Tester melalui tombol **Download CAS Tester**. Tester dibuka manual dan meminta base URL serta application key. CORS untuk file lokal dibatasi pada origin `null` (`CAS_TESTER_ORIGIN=null`).
 
 ## Endpoint MVP
 
@@ -27,6 +27,7 @@ Semua endpoint API di bawah memakai JSON response dengan `status`, `message`, da
 | Metode | Endpoint | Fungsi |
 |---|---|---|
 | POST | `/api/v1/admin/login` | Login username/password melalui UserGate; login CAS pertama mendapat peran `SUPER_ADMIN` |
+| GET | `/api/v1/applications/me` | Memvalidasi application key dan menampilkan identitas aplikasi |
 | POST | `/api/v1/assets` | Upload multipart (`file`, opsional `metadata` berupa objek JSON) |
 | GET | `/api/v1/assets/{id}` | Metadata aset, berdasarkan hak `metadata.read` |
 | GET/HEAD | `/api/v1/assets/{id}/content` | Download/stream dengan dukungan HTTP Range |
@@ -42,6 +43,8 @@ Semua endpoint API di bawah memakai JSON response dengan `status`, `message`, da
 Untuk mencabut grant: `DELETE /api/v1/assets/{id}/grants?grant_id=...`. Untuk menonaktifkan reference milik aplikasi pemanggil: `DELETE /api/v1/assets/{id}/references?reference_id=...`.
 
 Actions grant yang tersedia: `metadata.read`, `content.read`, `reference.read`, `reference.create`. Pemilik mendapat akses ke asetnya. Aplikasi penerima memerlukan grant aktif; saat aset menunggu penghapusan, akses penerima hanya berjalan jika ia juga memiliki reference aktif. Tambahkan `?inline=true` pada endpoint content untuk preview gambar, audio, video, dan PDF yang telah diotorisasi.
+
+CAS Tester menjalankan health check, memvalidasi application key, lalu (jika dicentang) membuat satu aset teks untuk menguji upload, metadata, dan download. Aset uji tidak dihapus otomatis karena purge fisik belum tersedia.
 
 ## Batas dan keputusan implementasi awal
 
