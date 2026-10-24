@@ -165,6 +165,67 @@ Metadata mencakup `asset_id`, `owner_application_id`, `original_filename`, `mime
 
 Jika aplikasi lain mengakses aset, akses metadata/konten membutuhkan grant aktif yang sesuai. Saat penghapusan aset menunggu, aplikasi penerima juga harus memiliki reference aktif.
 
+### Menampilkan gambar di halaman web
+
+Untuk aplikasi web, file tetap tinggal di storage CAS. Browser tidak mengambilnya langsung dari CAS karena application key harus dirahasiakan di server. Buat route di backend aplikasi, misalnya `GET /media/assets/{asset_id}`, yang melakukan hal berikut:
+
+1. Autentikasi user pada aplikasi pemanggil dan pastikan user tersebut boleh melihat aset/record terkait. Izin aplikasi pada CAS tidak otomatis berarti semua user aplikasi boleh melihat aset itu.
+2. Ambil `asset_id` dari record bisnis yang berhak diakses. Jangan membuat proxy terbuka yang menerima URL CAS arbitrer atau hanya meneruskan ID tanpa pemeriksaan otorisasi; hal itu dapat membuka celah IDOR/SSRF.
+3. Backend meminta konten ke CAS dengan `X-Application-Key` dari konfigurasi server, menggunakan `?inline=true` untuk gambar yang didukung.
+4. Teruskan status, `Content-Type`, dan byte respons sebagai stream ke browser. Jangan menaruh file ke disk backend jika tidak diperlukan.
+
+Halaman memakai URL backend aplikasi, bukan URL CAS:
+
+```html
+<img src="/media/assets/ASSET_ID_DARI_RECORD" alt="Foto inventaris">
+```
+
+Contoh handler Go. `canReadAsset` mewakili pemeriksaan autentikasi/otorisasi milik aplikasi dan harus disesuaikan; `CAS_BASE_URL`, `CAS_APPLICATION_KEY`, serta `casHTTP` berasal dari konfigurasi backend. Daftarkan handler pada route backend yang sesuai.
+
+```go
+func (h *Handler) showAssetImage(w http.ResponseWriter, r *http.Request) {
+    assetID := r.PathValue("asset_id")
+    if assetID == "" || !h.canReadAsset(r, assetID) {
+        http.NotFound(w, r)
+        return
+    }
+
+    endpoint := strings.TrimRight(h.casBaseURL, "/") +
+        "/api/v1/assets/" + url.PathEscape(assetID) + "/content?inline=true"
+    req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, endpoint, nil)
+    if err != nil {
+        http.Error(w, "could not request asset", http.StatusBadGateway)
+        return
+    }
+    req.Header.Set("X-Application-Key", h.casApplicationKey)
+    if value := r.Header.Get("Range"); value != "" {
+        req.Header.Set("Range", value)
+    }
+
+    resp, err := h.casHTTP.Do(req)
+    if err != nil {
+        http.Error(w, "asset service unavailable", http.StatusBadGateway)
+        return
+    }
+    defer resp.Body.Close()
+
+    for _, name := range []string{
+        "Content-Type", "Content-Length", "Content-Range", "Accept-Ranges",
+        "ETag", "Last-Modified", "Content-Disposition",
+    } {
+        if value := resp.Header.Get(name); value != "" {
+            w.Header().Set(name, value)
+        }
+    }
+    w.Header().Set("X-Content-Type-Options", "nosniff")
+    w.Header().Set("Cache-Control", "private, no-store")
+    w.WriteHeader(resp.StatusCode) // termasuk 206 Partial Content untuk Range
+    _, _ = io.Copy(w, resp.Body)   // streaming; tidak memuat seluruh gambar ke RAM
+}
+```
+
+Jika backend menggunakan session/cookie, lindungi route gambar dengan session tersebut. Untuk aset privat, hindari cache publik. Aplikasi dapat menambahkan cache privat terkontrol menggunakan checksum/ETag jika diperlukan; cache tersebut opsional dan bukan penyimpanan wajib. Browser mungkin menyimpan cache sesuai header HTTP, tetapi salinan sumber tetap berada di CAS.
+
 ### Referensi dan grant
 
 Reference menghubungkan aset dengan entitas di aplikasi pemanggil. Buat reference hanya setelah mendapatkan `asset_id`:
