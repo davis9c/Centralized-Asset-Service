@@ -99,6 +99,16 @@ func (s *Service) adminLogin(w http.ResponseWriter, r *http.Request) {
 	var role string
 	if err = tx.QueryRow(r.Context(), `SELECT COALESCE(role,'') FROM cas_local_users WHERE user_id=$1`, user.ID).Scan(&role); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			// UserGate has authenticated this identity, so keep a local disabled
+			// record for administrators to activate from the CAS user manager.
+			if _, insertErr := tx.Exec(r.Context(), `INSERT INTO cas_local_users(user_id,username,full_name,role,created_by) VALUES($1,$2,$3,NULL,'usergate-login') ON CONFLICT(user_id) DO NOTHING`, user.ID, user.Username, user.FullName); insertErr != nil {
+				fail(w, http.StatusInternalServerError, "local user registration failed")
+				return
+			}
+			if commitErr := tx.Commit(r.Context()); commitErr != nil {
+				fail(w, http.StatusInternalServerError, "local user registration failed")
+				return
+			}
 			fail(w, http.StatusForbidden, "User tidak terdaftar atau belum aktif. Hubungi administrator.")
 		} else {
 			fail(w, http.StatusInternalServerError, "local user lookup failed")
