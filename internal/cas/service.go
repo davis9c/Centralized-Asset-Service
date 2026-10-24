@@ -50,6 +50,12 @@ func (s *Service) Handler() http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write(casTesterHTML)
 	})
+	mux.HandleFunc("GET /downloads/cas-integration-guide.md", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="cas-integration-guide.md"`)
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = w.Write(casIntegrationGuide)
+	})
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" { http.NotFound(w, r); return }
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
