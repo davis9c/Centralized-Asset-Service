@@ -38,7 +38,14 @@ CREATE INDEX IF NOT EXISTS audit_created_idx ON audit_events(created_at DESC);
 CREATE TABLE IF NOT EXISTS cas_admins (
  user_id text PRIMARY KEY, role text NOT NULL, created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX IF NOT EXISTS cas_one_super_admin ON cas_admins(role) WHERE role='SUPER_ADMIN';
+DROP INDEX IF EXISTS cas_one_super_admin;
+CREATE TABLE IF NOT EXISTS cas_local_users (
+ user_id text PRIMARY KEY, username text NOT NULL, full_name text NOT NULL, role text,
+ created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), created_by text NOT NULL DEFAULT ''
+);
+INSERT INTO cas_local_users(user_id,username,full_name,role)
+ SELECT user_id,'','',role FROM cas_admins WHERE role='SUPER_ADMIN'
+ ON CONFLICT(user_id) DO NOTHING;
 `
 
 func Migrate(ctx context.Context, db *pgxpool.Pool) error {

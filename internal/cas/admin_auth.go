@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type userGateUser struct {
@@ -69,25 +72,52 @@ func (s *Service) adminLogin(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadGateway, "login service could not verify the user")
 		return
 	}
-	// Exactly one concurrently successful first login can claim the initial CAS admin role.
-	_, err = s.db.Exec(r.Context(), `INSERT INTO cas_admins(user_id,role) SELECT $1,'SUPER_ADMIN' WHERE NOT EXISTS (SELECT 1 FROM cas_admins WHERE role='SUPER_ADMIN') ON CONFLICT DO NOTHING`, user.ID)
+	if user.Username == "" { user.Username = credentials.Username }
+	if user.FullName == "" { user.FullName = user.Username }
+	tx, err := s.db.Begin(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, "administrator setup failed")
+		fail(w, http.StatusInternalServerError, "local user lookup failed")
 		return
 	}
-	var localAdmin bool
-	if err = s.db.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM cas_admins WHERE user_id=$1 AND role='SUPER_ADMIN')`, user.ID).Scan(&localAdmin); err != nil {
-		fail(w, http.StatusInternalServerError, "administrator setup failed")
+	defer tx.Rollback(r.Context())
+	if _, err = tx.Exec(r.Context(), `SELECT pg_advisory_xact_lock(7410291)`); err != nil {
+		fail(w, http.StatusInternalServerError, "local user lookup failed")
 		return
 	}
-	if !localAdmin && !user.SuperAdmin {
-		fail(w, http.StatusForbidden, "login succeeded, but this user is not a CAS administrator")
+	var total int
+	if err = tx.QueryRow(r.Context(), `SELECT count(*) FROM cas_local_users`).Scan(&total); err != nil {
+		fail(w, http.StatusInternalServerError, "local user lookup failed")
 		return
 	}
-	roles := append([]string(nil), user.Roles...)
-	if localAdmin && !contains(roles, "SUPER_ADMIN") {
-		roles = append(roles, "SUPER_ADMIN")
+	if total == 0 {
+		_, err = tx.Exec(r.Context(), `INSERT INTO cas_local_users(user_id,username,full_name,role,created_by) VALUES($1,$2,$3,'SUPER_ADMIN','first-login') ON CONFLICT(user_id) DO NOTHING`, user.ID, user.Username, user.FullName)
+		if err != nil {
+			fail(w, http.StatusInternalServerError, "initial administrator setup failed")
+			return
+		}
 	}
+	var role string
+	if err = tx.QueryRow(r.Context(), `SELECT COALESCE(role,'') FROM cas_local_users WHERE user_id=$1`, user.ID).Scan(&role); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			fail(w, http.StatusForbidden, "User tidak terdaftar atau belum aktif. Hubungi administrator.")
+		} else {
+			fail(w, http.StatusInternalServerError, "local user lookup failed")
+		}
+		return
+	}
+	if _, err = tx.Exec(r.Context(), `UPDATE cas_local_users SET username=$2,full_name=$3,updated_at=now() WHERE user_id=$1 AND role IS NOT NULL`, user.ID, user.Username, user.FullName); err != nil {
+		fail(w, http.StatusInternalServerError, "local user update failed")
+		return
+	}
+	if err = tx.Commit(r.Context()); err != nil {
+		fail(w, http.StatusInternalServerError, "local user update failed")
+		return
+	}
+	if !validLocalRole(role) {
+		fail(w, http.StatusForbidden, "User tidak terdaftar atau belum aktif. Hubungi administrator.")
+		return
+	}
+	roles := []string{role}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status": true,
 		"message": "authenticated successfully",
@@ -133,5 +163,14 @@ func contains(values []string, wanted string) bool {
 		}
 	}
 	return false
+}
+
+func validLocalRole(role string) bool {
+	switch role {
+	case "SUPER_ADMIN", "ADMIN", "AUDITOR":
+		return true
+	default:
+		return false
+	}
 }
 

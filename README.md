@@ -15,10 +15,10 @@ Tidak ada proses build atau server yang dijalankan selama penulisan ini. Jangan 
 - API aplikasi menggunakan `X-Application-Key`. Kunci disimpan sebagai SHA-256, bukan plaintext.
 - `CAS_BOOTSTRAP_APP_ID` dan `CAS_BOOTSTRAP_APP_KEY` membuat satu aplikasi pertama hanya jika ID belum terdaftar. Kunci minimal 32 karakter; perubahan env tidak merotasi kunci yang sudah ada.
 - Halaman admin menerima username/password UserGate dan mengirimkannya ke endpoint login melalui server CAS. API key UserGate hanya dikirim dari server ke server. UserGate access token dipakai oleh UI selama tab aktif; password tidak disimpan.
-- Pada login sukses pertama, CAS mencatat user tersebut sebagai `SUPER_ADMIN` lokal jika belum ada admin CAS. UserGate `SUPER_ADMIN` yang sudah ada juga tetap diterima.
+- Pada login sukses pertama, CAS mencatat user tersebut sebagai `SUPER_ADMIN` lokal jika belum ada user CAS. Sesudah setup awal, akun UserGate harus terdaftar pada manajemen user lokal CAS. Role UserGate tidak menggantikan role lokal CAS.
 - API key UserGate tidak boleh dikirim ke browser.
 
-Dashboard manajemen aplikasi tersedia di `GET /admin/`. Dashboard dapat melihat aplikasi, mendaftarkan aplikasi baru, mengubah status, dan mengunduh CAS Tester melalui tombol **Download CAS Tester**. Tester dibuka manual dan meminta base URL serta application key. CORS untuk file lokal dibatasi pada origin `null` (`CAS_TESTER_ORIGIN=null`).
+Dashboard tersedia di `GET /admin/` dan menampilkan halaman login UserGate. `SUPER_ADMIN` dapat mengelola user lokal dan aplikasi; `ADMIN` dapat mengelola aplikasi; `AUDITOR` hanya dapat melihat aplikasi, aset, serta audit. User lokal dengan role kosong tetap tersimpan tetapi nonaktif dan ditolak saat login dengan pesan untuk menghubungi administrator. `SUPER_ADMIN` mengaktifkan user dengan menetapkan salah satu role. User ID harus diambil dari UserGate. Dashboard juga menyediakan unduhan CAS Tester melalui tombol **Download CAS Tester**; tester dibuka manual dan meminta base URL serta application key. CORS untuk file lokal dibatasi pada origin `null` (`CAS_TESTER_ORIGIN=null`).
 
 ## Endpoint MVP
 
@@ -27,6 +27,8 @@ Semua endpoint API di bawah memakai JSON response dengan `status`, `message`, da
 | Metode | Endpoint | Fungsi |
 |---|---|---|
 | POST | `/api/v1/admin/login` | Login username/password melalui UserGate; login CAS pertama mendapat peran `SUPER_ADMIN` |
+| GET/POST | `/api/v1/admin/local-users` | Daftar dan registrasi user lokal (khusus `SUPER_ADMIN`); role kosong membuat user nonaktif |
+| PATCH | `/api/v1/admin/local-users/{user_id}` | Ubah role user lokal (khusus `SUPER_ADMIN`); selalu harus tersisa satu `SUPER_ADMIN` |
 | GET | `/api/v1/applications/me` | Memvalidasi application key dan menampilkan identitas aplikasi |
 | POST | `/api/v1/assets` | Upload multipart (`file`, opsional `metadata` berupa objek JSON) |
 | GET | `/api/v1/assets/{id}` | Metadata aset, berdasarkan hak `metadata.read` |

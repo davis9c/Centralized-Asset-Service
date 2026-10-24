@@ -20,7 +20,7 @@ import (
 
 type UserGate struct { BaseURL, APIKey string }
 type Service struct { db *pgxpool.Pool; storage string; maxUpload int64; userGate UserGate }
-type actor struct { AppID string; Admin bool; UserID string }
+type actor struct { AppID string; Admin bool; UserID string; Role string }
 type ctxKey int
 const actorKey ctxKey = 1
 var userGateHTTP = &http.Client{Timeout: 5 * time.Second}
@@ -68,10 +68,11 @@ func (s *Service) route(w http.ResponseWriter, r *http.Request) {
 	case r.Method==http.MethodPost && r.URL.Path=="/api/v1/assets": s.upload(w,r,a)
 	case r.Method==http.MethodGet && r.URL.Path=="/api/v1/applications/me": s.applicationMe(w,r,a)
 	case strings.HasPrefix(r.URL.Path,"/api/v1/assets/"): s.assetRoutes(w,r,a)
-	case r.URL.Path=="/api/v1/admin/applications" && a.Admin: s.adminApplications(w,r)
+	case strings.HasPrefix(r.URL.Path,"/api/v1/admin/local-users") && a.Role=="SUPER_ADMIN": s.adminLocalUsers(w,r)
+	case r.URL.Path=="/api/v1/admin/applications" && ((r.Method==http.MethodGet && validLocalRole(a.Role)) || (r.Method==http.MethodPost && a.Admin)): s.adminApplications(w,r)
 	case strings.HasPrefix(r.URL.Path,"/api/v1/admin/applications/") && a.Admin: s.adminApplication(w,r)
-	case r.URL.Path=="/api/v1/admin/assets" && r.Method==http.MethodGet && a.Admin: s.adminAssets(w,r)
-	case r.URL.Path=="/api/v1/admin/audit" && r.Method==http.MethodGet && a.Admin: s.adminAudit(w,r)
+	case r.URL.Path=="/api/v1/admin/assets" && r.Method==http.MethodGet && validLocalRole(a.Role): s.adminAssets(w,r)
+	case r.URL.Path=="/api/v1/admin/audit" && r.Method==http.MethodGet && validLocalRole(a.Role): s.adminAudit(w,r)
 	default: fail(w,404,"not found")
 	}
 }
@@ -86,11 +87,11 @@ func (s *Service) authenticateAdmin(r *http.Request) (actor,error) {
 	if s.userGate.APIKey=="" { return actor{},fmt.Errorf("admin auth not configured") }
 	token:=strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"),"Bearer ")); if token=="" { return actor{},fmt.Errorf("missing token") }
 	user,err:=s.userGateMe(r.Context(),token); if err!=nil{return actor{},err}
-	var localAdmin bool
-	err=s.db.QueryRow(r.Context(),`SELECT EXISTS(SELECT 1 FROM cas_admins WHERE user_id=$1 AND role='SUPER_ADMIN')`,user.ID).Scan(&localAdmin)
-	if err!=nil{return actor{},err}
-	if !localAdmin&&!user.SuperAdmin{return actor{},fmt.Errorf("forbidden")}
-	return actor{Admin:true,UserID:user.ID},nil
+	var role string
+	err=s.db.QueryRow(r.Context(),`SELECT COALESCE(role,'') FROM cas_local_users WHERE user_id=$1`,user.ID).Scan(&role)
+	if err!=nil{return actor{},fmt.Errorf("forbidden")}
+	if !validLocalRole(role){return actor{},fmt.Errorf("forbidden")}
+	return actor{Admin:role=="SUPER_ADMIN"||role=="ADMIN",UserID:user.ID,Role:role},nil
 }
 func (s *Service) upload(w http.ResponseWriter,r *http.Request,a actor) {
 	r.Body=http.MaxBytesReader(w,r.Body,s.maxUpload+(1<<20))
