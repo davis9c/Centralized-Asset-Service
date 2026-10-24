@@ -24,8 +24,8 @@
   <div class="shell">
     <header><div class="brand"><div class="mark">CAS</div><div><h1>Centralized Asset Service</h1><div class="sub">Admin console</div></div></div><div class="pill"><span class="dot"></span> API service</div></header>
     <main>
-      <section class="intro"><div><div class="eyebrow">Administration</div><h2>Manajemen aplikasi</h2><p>Daftarkan aplikasi pemanggil CAS dan kendalikan status aksesnya.</p></div><button id="logout" class="secondary" hidden>Keluar</button></section>
-      <section id="loginCard" class="card auth"><div class="auth-aside"><div><div class="auth-mark">CAS</div><h2>Aset terkelola.<br>Terhubung aman.</h2><p>Kelola aplikasi yang terhubung ke Centralized Asset Service dari satu tempat.</p></div><div class="auth-meta">CENTRALIZED ASSET SERVICE · ADMIN CONSOLE</div></div><div class="auth-form"><h3>Selamat datang</h3><p>Masuk menggunakan akun UserGate yang sudah terdaftar di CAS.</p><form id="loginForm"><div class="authrow"><div class="field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required placeholder="Username UserGate"></div><div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required placeholder="Password UserGate"></div><button id="loginButton" type="submit">Masuk ke dashboard</button></div></form><p class="hint">Akun harus diaktifkan oleh administrator CAS. User pertama saat setup awal otomatis menjadi SUPER ADMIN.</p><div id="authNotice" class="notice" role="status"></div></div></section>
+      <section class="intro"><div><div class="eyebrow">Administration</div><h2>Manajemen aplikasi</h2><p>Daftarkan aplikasi pemanggil CAS dan kendalikan status aksesnya.</p></div><div style="display:flex;align-items:center;gap:12px"><span id="loggedUser" class="pill"></span><button id="logout" class="secondary">Keluar</button></div></section>
+      <div id="dashboardNotice" class="notice" role="status"></div>
       <div id="workspace" hidden>
         <nav class="dashboard-nav"><button type="button" class="active" data-pane="appsPane">Aplikasi</button><button id="usersNav" type="button" data-pane="usersPane" hidden>Manajemen user</button></nav>
         <div id="appsPane" class="pane">
@@ -38,16 +38,21 @@
   </div>
   <script>
     (() => {
-      let accessToken = '';
-      let currentRole = '';
+      let accessToken = sessionStorage.getItem('casAccessToken') || '';
+      let currentRole = sessionStorage.getItem('casRole') || '';
       const $ = (id) => document.getElementById(id);
-      const authNotice = $('authNotice');
+      const authNotice = $('dashboardNotice');
+      if (!accessToken) { location.replace('/login/?next=%2Fadmin%2F'); return; }
+      $('workspace').hidden = false;
+      $('usersNav').hidden = currentRole !== 'SUPER_ADMIN';
+      $('createCard').hidden = currentRole === 'AUDITOR';
+      $('loggedUser').textContent = `${sessionStorage.getItem('casUser') || 'User'} · ${currentRole.replace('_',' ')}`;
       function notice(node, text, kind) { node.textContent = text; node.className = `notice show ${kind}`; }
       function clearNotice(node) { node.textContent = ''; node.className = 'notice'; }
       async function api(path, options = {}) {
         const response = await fetch(path, { ...options, headers: { 'Authorization': `Bearer ${accessToken}`, ...(options.headers || {}) } });
         let body; try { body = await response.json(); } catch { throw new Error(`Respons server tidak valid (${response.status}).`); }
-        if (!response.ok) throw new Error(body.message || `Permintaan gagal (${response.status}).`);
+        if (!response.ok) { const error=new Error(body.message || `Permintaan gagal (${response.status}).`); error.status=response.status; throw error; }
         return body;
       }
       function cellText(parent, className, text) { const el = document.createElement('div'); el.className = className; el.textContent = text; parent.append(el); return el; }
@@ -81,19 +86,7 @@
         for(const user of users){const row=document.createElement('div');row.className='app-row';const identity=document.createElement('div');cellText(identity,'app-name',user.full_name||user.username);cellText(identity,'app-id',user.username);row.append(identity);cellText(row,'app-id',user.user_id);const actions=document.createElement('div');actions.className='row-actions';const select=document.createElement('select');select.setAttribute('aria-label',`Role untuk ${user.username}`);for(const [value,label] of [['','Tanpa role'],['ADMIN','ADMIN'],['AUDITOR','AUDITOR'],['SUPER_ADMIN','SUPER ADMIN']]){const option=document.createElement('option');option.value=value;option.textContent=label;option.selected=(user.role||'')===value;select.append(option)}select.addEventListener('change',async()=>{select.disabled=true;try{await api(`/api/v1/admin/local-users/${encodeURIComponent(user.user_id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:select.value})});await loadUsers();notice($('userNotice'),'Role user berhasil diperbarui.','success')}catch(error){notice($('userNotice'),error.message,'error');select.value=user.role||''}finally{select.disabled=false}});actions.append(select);const state=document.createElement('span');state.className=`status ${user.active?'ACTIVE':'DISABLED'}`;state.textContent=user.active?(user.role==='SUPER_ADMIN'?'SUPER ADMIN':user.role):'NONAKTIF';actions.append(state);row.append(actions);root.append(row)}
       }
       async function loadUsers(){ $('localUsers').classList.add('loading');try{const result=await api('/api/v1/admin/local-users');renderUsers(result.data||[])}finally{$('localUsers').classList.remove('loading')} }
-      $('loginForm').addEventListener('submit', async (event) => {
-        event.preventDefault(); clearNotice(authNotice); const button=$('loginButton'); button.disabled=true;
-        try {
-          const response=await fetch('/api/v1/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('username').value.trim(),password:$('password').value})});
-          let result; try { result=await response.json(); } catch { throw new Error('Respons server tidak valid.'); }
-          $('password').value=''; if(!response.ok)throw new Error(result.message||`Login gagal (${response.status}).`);
-          accessToken=result.data.access_token; currentRole=(result.data.user.roles||[])[0]||''; await loadApps(); $('workspace').hidden=false; $('loginCard').hidden=true; $('logout').hidden=false; $('username').disabled=true; $('password').disabled=true; button.hidden=true; $('usersNav').hidden=currentRole!=='SUPER_ADMIN'; $('createCard').hidden=currentRole==='AUDITOR';
-          const displayName=result.data.user.full_name||result.data.user.username||result.data.user.id; notice(authNotice,`Berhasil masuk sebagai ${displayName}.`,'success');
-        }
-        catch (error) { accessToken=''; notice(authNotice,error.message,'error'); }
-        finally { button.disabled=false; }
-      });
-      $('logout').addEventListener('click', () => { accessToken=''; currentRole=''; $('password').value=''; $('username').disabled=false; $('password').disabled=false; $('loginButton').hidden=false; $('workspace').hidden=true; $('loginCard').hidden=false; $('logout').hidden=true; $('apps').replaceChildren(); $('usersNav').hidden=true; clearNotice(authNotice); });
+      $('logout').addEventListener('click', () => { sessionStorage.removeItem('casAccessToken'); sessionStorage.removeItem('casRole'); sessionStorage.removeItem('casUser'); location.replace('/login/?next=%2Fadmin%2F'); });
       document.querySelectorAll('.dashboard-nav button').forEach(button=>button.addEventListener('click',async()=>{document.querySelectorAll('.dashboard-nav button').forEach(item=>item.classList.toggle('active',item===button));$('appsPane').hidden=button.dataset.pane!=='appsPane';$('usersPane').hidden=button.dataset.pane!=='usersPane';if(button.dataset.pane==='usersPane'){try{await loadUsers()}catch(error){notice($('userNotice'),error.message,'error')}}}));
       $('userForm').addEventListener('submit',async(event)=>{event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;clearNotice($('userNotice'));try{await api('/api/v1/admin/local-users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:$('userId').value.trim(),username:$('localUsername').value.trim(),full_name:$('fullName').value.trim(),role:$('userRole').value})});event.currentTarget.reset();notice($('userNotice'),'User lokal berhasil ditambahkan.','success');await loadUsers()}catch(error){notice($('userNotice'),error.message,'error')}finally{button.disabled=false}});
       $('createForm').addEventListener('submit', async (event) => {
@@ -104,6 +97,7 @@
         finally { button.disabled=false; }
       });
       $('copyKey').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('newKey').textContent); $('copyKey').textContent='Tersalin'; setTimeout(()=>$('copyKey').textContent='Salin kunci',1500); } catch { notice($('createNotice'),'Clipboard tidak tersedia; salin kunci secara manual.','error'); } });
+      loadApps().catch(error=>{notice(authNotice,error.message,'error');if(error.status===401||error.status===403){sessionStorage.removeItem('casAccessToken');sessionStorage.removeItem('casRole');sessionStorage.removeItem('casUser');location.replace('/login/?next=%2Fadmin%2F')}});
     })();
   </script>
 </body>

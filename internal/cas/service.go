@@ -28,6 +28,14 @@ var userGateHTTP = &http.Client{Timeout: 5 * time.Second}
 func New(db *pgxpool.Pool, storage string, max int64, ug UserGate) *Service { return &Service{db:db, storage:storage, maxUpload:max, userGate:ug} }
 func (s *Service) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/login/", http.StatusTemporaryRedirect) })
+	mux.HandleFunc("GET /login/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/login/" { http.NotFound(w, r); return }
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+		_, _ = w.Write(loginHTML)
+	})
 	mux.HandleFunc("GET /admin", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/admin/", http.StatusTemporaryRedirect) })
 	mux.HandleFunc("GET /admin/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/admin/" { http.NotFound(w, r); return }

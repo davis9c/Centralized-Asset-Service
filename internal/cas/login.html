@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Masuk · CAS</title>
+  <style>
+    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#14221f;background:#f2f5f3;font-synthesis:none}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 88% 8%,#d9eee7 0,transparent 32%),#f2f5f3;display:grid;place-items:center;padding:24px}.auth{width:min(880px,100%);background:#fff;border:1px solid #e2eae6;border-radius:18px;overflow:hidden;display:grid;grid-template-columns:1.05fr .95fr;box-shadow:0 24px 70px #173b2c18}.aside{padding:40px;background:linear-gradient(145deg,#0d4f41,#15765d);color:#fff;display:flex;flex-direction:column;justify-content:space-between;min-height:440px}.mark{width:46px;height:46px;border-radius:14px;background:#ffffff20;display:grid;place-items:center;font-weight:850;letter-spacing:-1px}.aside h1{font-size:34px;line-height:1.12;letter-spacing:-1.2px;margin:42px 0 12px}.aside p{font-size:14px;color:#d4eee5;line-height:1.7;max-width:340px}.meta{font-size:11px;color:#b5ddd0;letter-spacing:.4px}.form{padding:46px 40px;align-self:center}.form h2{font-size:23px;letter-spacing:-.5px;margin:0 0 7px}.lead{font-size:13px;color:#78867f;line-height:1.55;margin:0 0 25px}.fields{display:grid;gap:17px}.field{display:grid;gap:7px}.field label{font-size:12px;color:#56675f;font-weight:650}.field input{width:100%;height:46px;border:1px solid #dce5e1;border-radius:9px;padding:0 12px;font:inherit;font-size:14px;outline:none}.field input:focus{border-color:#25866a;box-shadow:0 0 0 3px #16805d1b}button{border:0;border-radius:9px;height:47px;padding:0 15px;background:#116b55;color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:3px}button:hover{background:#0b5946}button:disabled{opacity:.6;cursor:wait}.hint{font-size:11px;color:#819089;line-height:1.6;margin:16px 0 0}.notice{display:none;border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.45;margin-top:17px}.notice.show{display:block}.notice.error{background:#fff1ef;color:#8b342e;border:1px solid #f1d1cc}.notice.success{background:#edf8f2;color:#236246;border:1px solid #cce8d8}.back{display:inline-block;margin-top:24px;color:#58736a;font-size:12px;text-decoration:none}.back:hover{color:#116b55}@media(max-width:700px){body{padding:15px}.auth{grid-template-columns:1fr}.aside{min-height:210px;padding:25px}.aside h1{font-size:27px;margin:22px 0 5px}.aside p{margin:0}.meta{margin-top:18px}.form{padding:30px 25px}}
+  </style>
+</head>
+<body>
+  <main class="auth">
+    <section class="aside"><div><div class="mark">CAS</div><h1>Aset terkelola.<br>Terhubung aman.</h1><p>Kelola aplikasi yang terhubung ke Centralized Asset Service dari satu tempat.</p></div><div class="meta">CENTRALIZED ASSET SERVICE · ADMIN CONSOLE</div></section>
+    <section class="form"><h2>Selamat datang</h2><p class="lead">Masuk menggunakan akun UserGate yang sudah terdaftar dan diaktifkan di CAS.</p>
+      <form id="loginForm" class="fields"><div class="field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required autofocus placeholder="Username UserGate"></div><div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required placeholder="Password UserGate"></div><button id="loginButton" type="submit">Masuk ke dashboard</button></form>
+      <p class="hint">User pertama saat setup awal CAS otomatis menjadi SUPER ADMIN. User berikutnya perlu diberi role oleh SUPER ADMIN.</p><div id="notice" class="notice" role="status" aria-live="polite"></div><a class="back" href="/">← Kembali ke halaman CAS</a>
+    </section>
+  </main>
+  <script>
+    (()=>{
+      const $=id=>document.getElementById(id), notice=$('notice');
+      const params=new URLSearchParams(location.search), requested=params.get('next')||'/admin/';
+      const next=requested.startsWith('/')&&!requested.startsWith('//')&&!requested.startsWith('/login')?requested:'/admin/';
+      if(sessionStorage.getItem('casAccessToken')){location.replace(next);return}
+      function show(message,kind){notice.textContent=message;notice.className=`notice show ${kind}`}
+      $('loginForm').addEventListener('submit',async event=>{
+        event.preventDefault();notice.className='notice';const button=$('loginButton');button.disabled=true;button.textContent='Memeriksa akun…';
+        try{
+          const response=await fetch('/api/v1/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('username').value.trim(),password:$('password').value})});
+          let result;try{result=await response.json()}catch{throw new Error('Respons server tidak valid.')}
+          $('password').value='';if(!response.ok)throw new Error(result.message||`Login gagal (${response.status}).`);
+          sessionStorage.setItem('casAccessToken',result.data.access_token);sessionStorage.setItem('casRole',(result.data.user.roles||[])[0]||'');sessionStorage.setItem('casUser',result.data.user.full_name||result.data.user.username||result.data.user.id||'');
+          show('Login berhasil. Mengalihkan ke dashboard…','success');location.replace(next);
+        }catch(error){show(error.message,'error');button.disabled=false;button.textContent='Masuk ke dashboard'}
+      });
+    })();
+  </script>
+</body>
+</html>
