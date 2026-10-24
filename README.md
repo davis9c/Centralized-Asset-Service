@@ -31,6 +31,7 @@ Semua endpoint API di bawah memakai JSON response dengan `status`, `message`, da
 | PATCH | `/api/v1/admin/local-users/{user_id}` | Ubah role user lokal (khusus `SUPER_ADMIN`); selalu harus tersisa satu `SUPER_ADMIN` |
 | GET | `/api/v1/applications/me` | Memvalidasi application key dan menampilkan identitas aplikasi |
 | POST | `/api/v1/assets` | Upload multipart (`file`, opsional `metadata` berupa objek JSON) |
+| GET | `/api/v1/assets` | Daftar aset milik aplikasi; mendukung `limit`, `offset`, `q`, dan `status` |
 | GET | `/api/v1/assets/{id}` | Metadata aset, berdasarkan hak `metadata.read` |
 | GET/HEAD | `/api/v1/assets/{id}/content` | Download/stream dengan dukungan HTTP Range |
 | DELETE | `/api/v1/assets/{id}` | Meminta penghapusan; tidak menghapus konten fisik |
@@ -46,7 +47,7 @@ Untuk mencabut grant: `DELETE /api/v1/assets/{id}/grants?grant_id=...`. Untuk me
 
 Actions grant yang tersedia: `metadata.read`, `content.read`, `reference.read`, `reference.create`. Pemilik mendapat akses ke asetnya. Aplikasi penerima memerlukan grant aktif; saat aset menunggu penghapusan, akses penerima hanya berjalan jika ia juga memiliki reference aktif. Tambahkan `?inline=true` pada endpoint content untuk preview gambar, audio, video, dan PDF yang telah diotorisasi.
 
-CAS Tester menjalankan health check dan validasi application key, mendukung file pilihan atau file contoh, lalu memeriksa upload, metadata, ukuran, checksum SHA-256, serta download. Tester dapat mengekspor laporan JSON tanpa menyertakan application key dan mengajukan penghapusan logis untuk aset uji. Penghapusan logis tidak menghapus file fisik karena purge fisik belum tersedia; tester meminta penghapusan untuk aset sebelumnya sebelum mengizinkan upload uji berikutnya.
+CAS Tester menjadi workspace aset untuk application key yang aktif: menampilkan daftar aset milik aplikasi (pencarian, filter status, dan pagination), upload manual, unduh, lihat metadata, serta ajukan penghapusan logis. Workspace juga menampilkan contoh API cURL/JavaScript. Mode tema mengikuti sistem secara default dan dapat diganti ke terang/gelap. Tester integrasi tetap menjalankan health check dan validasi key, mendukung file pilihan atau file contoh, lalu memeriksa upload, metadata, ukuran, checksum SHA-256, serta download. Laporan JSON tidak menyertakan application key. Penghapusan logis tidak menghapus file fisik karena purge fisik belum tersedia.
 
 ## Batas dan keputusan implementasi awal
 

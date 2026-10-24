@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
   <title>CAS Tester · Centralized Asset Service</title>
   <style>
     :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#172820;background:#f2f6f3;font-synthesis:none}
@@ -47,26 +47,56 @@
     .log{background:#10251d;color:#cbe3d5;border-radius:10px;padding:13px;min-height:90px;max-height:300px;overflow:auto;font:10px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
     .log:empty:before{content:"Belum ada aktivitas.";color:#82988c}.foot{margin:24px 0 0;text-align:center;font-size:10px;color:#8b9891}
     .hidden{display:none!important}
-    @media(max-width:780px){.layout{grid-template-columns:1fr}.wrap{padding:20px 14px 48px}.hero{padding:26px 0 18px}.card{padding:17px}}
-    @media(max-width:540px){.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.topbar{align-items:flex-start}.tag{font-size:10px}h1{font-size:29px}.actions button{flex:1}}
+    .status{display:inline-flex;align-items:center;padding:5px 7px;border-radius:6px;background:#edf2ef;color:#53655b;font-size:9px;font-weight:750;white-space:nowrap}.status.ACTIVE{background:#e8f6ed;color:#23734e}.status.DELETE_PENDING{background:#fff5df;color:#8b6720}.status.DELETE_BLOCKED{background:#fff0ee;color:#a64539}.status.PURGE_PENDING{background:#edf4fb;color:#47729a}
+    .workspace-nav{display:flex;gap:5px;overflow:auto;border-bottom:1px solid #dfe8e3;margin:0 0 18px}.workspace-nav button,.code-tabs button{height:38px;background:transparent;color:#687b70;border-radius:8px 8px 0 0;border-bottom:2px solid transparent}.workspace-nav button.active,.code-tabs button.active{color:#116b55;border-bottom-color:#116b55}.files-layout{grid-template-columns:minmax(280px,.78fr) minmax(0,1.22fr)}
+    .stack-form{display:grid;gap:13px;margin-top:14px}.asset-filters{display:grid;grid-template-columns:1fr 165px auto;gap:8px;margin:4px 0 12px}.asset-filters select{height:42px;border:1px solid #d8e3dc;border-radius:9px;padding:0 9px;background:white;color:#20352b;font:inherit;font-size:12px}.asset-list{display:grid;gap:9px;min-height:100px}.empty{padding:25px 15px;text-align:center;color:#7e8c84;font-size:12px;border:1px dashed #dfe8e3;border-radius:10px}.asset-row{border:1px solid #e6ede9;border-radius:11px;padding:12px}.asset-row-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.asset-name{font-size:12px;font-weight:750;overflow-wrap:anywhere}.asset-id{font:10px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:#849189;overflow-wrap:anywhere;margin-top:4px}.asset-tags{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}.asset-tags span{font-size:9px;color:#697b71;background:#f1f5f2;padding:5px 7px;border-radius:6px}.asset-tags .status{font-weight:750}.asset-row-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.asset-row-actions button{height:32px;font-size:10px;padding:0 9px}.asset-row details{margin-top:9px;border-top:1px solid #edf1ee;padding-top:8px}.asset-row summary{cursor:pointer;color:#587166;font-size:10px;font-weight:700}.asset-row pre{font:10px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;background:#f7faf8;border-radius:7px;padding:9px;color:#30493c}.pager{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;font-size:10px;color:#7a8981}.pager div{display:flex;gap:6px}.pager button{height:32px;font-size:10px;padding:0 9px}.code-tabs{display:flex;gap:5px;border-bottom:1px solid #e1e9e5;margin-bottom:12px}.api-code{margin:0;padding:15px;background:#10251d;color:#cbe3d5;border-radius:10px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;min-height:220px}.connection-dialog{width:min(470px,calc(100% - 28px));border:1px solid #dfe8e3;border-radius:16px;padding:22px;background:#fff;color:#172820;box-shadow:0 24px 80px #0a201833}.connection-dialog::backdrop{background:#10251d88;backdrop-filter:blur(3px)}.dialog-top{display:flex;justify-content:space-between;align-items:center}.dialog-top h2{margin:5px 0 0;font-size:20px}.close-dialog{width:34px;height:34px;padding:0;background:#f1f5f2;color:#44564d;font-size:20px}.dialog-lead{font-size:11px;line-height:1.5;color:#78877f;margin:10px 0 18px}.connection-dialog .grid{grid-template-columns:1fr;gap:12px}.connection-dialog .field.full{grid-column:auto}
+    :root{color-scheme:light;--page:#f2f6f3;--surface:#fff;--text:#172820;--muted:#718078;--border:#e0e9e4;--input:#fff;--input-text:#20352b;--soft:#f1f5f2;--soft-text:#40554a;--soft-border:#dce6e0;--subtle:#f8fbf9;--terminal:#10251d;--terminal-text:#cbe3d5}
+    body{color:var(--text);background:radial-gradient(ellipse at 85% 0,#d9eee5 0,transparent 30%),var(--page)}
+    .card,.tag,.connection-dialog{background:var(--surface);color:var(--text);border-color:var(--border)}.card{box-shadow:0 5px 20px #173c2808}.card-head p,.lead,.micro,.pager,.asset-id{color:var(--muted)}
+    input,textarea,.asset-filters select{background:var(--input);color:var(--input-text);border-color:var(--border)}label{color:var(--muted)}
+    button.secondary,.button.secondary{background:var(--soft);color:var(--soft-text);border-color:var(--soft-border)}button.secondary:hover,.button.secondary:hover,button.ghost:hover{background:var(--border)}
+    .workspace-nav{border-color:var(--border)}.workspace-nav button,.code-tabs button{color:var(--muted)}.workspace-nav button.active,.code-tabs button.active{color:#116b55}
+    .asset-row,.result{border-color:var(--border)}.asset-tags span,.close-dialog{background:var(--soft);color:var(--muted)}.asset-row pre{background:var(--subtle);color:var(--text)}.empty{border-color:var(--border);color:var(--muted)}
+    .assetbox,.connected{background:var(--subtle);border-color:var(--border);color:var(--text)}.api-code,.log{background:var(--terminal);color:var(--terminal-text)}.connection-dialog::backdrop{background:#10251d88}
+    @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--page:#101815;--surface:#18231e;--text:#e5eee8;--muted:#a3b2a9;--border:#2a3a31;--input:#111b16;--input-text:#e5eee8;--soft:#202e26;--soft-text:#d4e0d8;--soft-border:#34483c;--subtle:#131d18;--terminal:#0b120e;--terminal-text:#cbe3d5}body{background:radial-gradient(ellipse at 85% 0,#173a2b 0,transparent 34%),var(--page)}.step{background:#1c392b;color:#a7ddbd}.notice.error{background:#3a211e;color:#ffb5aa;border-color:#5a302a}.notice.success{background:#1c3528;color:#a9e0bd;border-color:#2d513c}.notice.info{background:#1b2d3a;color:#b5d9f3;border-color:#29485e}.warning{background:#332b19;color:#efd58e;border-color:#5b4a23}.connected{background:#1c3528;color:#b3e5c5;border-color:#2d513c}.result.ok .ico{background:#1c3528;color:#9cdbb5}.result.fail .ico{background:#3a211e;color:#ffb5aa}.result.running .ico{background:#1b2d3a;color:#b5d9f3}.status{color:#e5eee8}.status.ACTIVE{background:#1c3528;color:#a9e0bd}.status.DISABLED{background:#3c321e;color:#efd58e}.status.RETIRED{background:#2a3330;color:#c0cbc5}.close-dialog{color:var(--text)}}
+    :root[data-theme="dark"]{color-scheme:dark;--page:#101815;--surface:#18231e;--text:#e5eee8;--muted:#a3b2a9;--border:#2a3a31;--input:#111b16;--input-text:#e5eee8;--soft:#202e26;--soft-text:#d4e0d8;--soft-border:#34483c;--subtle:#131d18;--terminal:#0b120e;--terminal-text:#cbe3d5}
+    :root[data-theme="light"]{color-scheme:light}
+    @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--brand:#d5e7dc;--brandLink:#99d5b1;--idtext:#b5d3c1;--active:#91d9ae}}
+    :root[data-theme="dark"] .brand,:root[data-theme="dark"] .eyebrow{color:#9ccfb1}:root[data-theme="dark"] .admin-link{color:#99d5b1}:root[data-theme="dark"] .assetbox .id{color:#b5d3c1}:root[data-theme="dark"] .workspace-nav button.active,:root[data-theme="dark"] .code-tabs button.active{color:#91d9ae}
+    :root[data-theme="dark"] .status{background:#2a3330;color:#d0dbd4}:root[data-theme="dark"] .status.ACTIVE{background:#1c3528;color:#a9e0bd}:root[data-theme="dark"] .status.DELETE_PENDING{background:#3c321e;color:#efd58e}:root[data-theme="dark"] .status.DELETE_BLOCKED{background:#3a211e;color:#ffb5aa}:root[data-theme="dark"] .status.PURGE_PENDING{background:#1b2d3a;color:#b5d9f3}
+    :root[data-theme="dark"] .ack,:root[data-theme="dark"] .asset-row summary,:root[data-theme="dark"] .result small{color:var(--muted)}:root[data-theme="dark"] .asset-row details{border-color:var(--border)}:root[data-theme="dark"] button.danger{background:#3a211e;color:#ffb5aa;border-color:#5a302a}:root[data-theme="dark"] button.danger:hover{background:#4a2924}:root[data-theme="dark"] button.ghost{color:var(--muted)}
+    @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .status{background:#2a3330;color:#d0dbd4}:root:not([data-theme="light"]) .status.ACTIVE{background:#1c3528;color:#a9e0bd}:root:not([data-theme="light"]) .status.DELETE_PENDING{background:#3c321e;color:#efd58e}:root:not([data-theme="light"]) .status.DELETE_BLOCKED{background:#3a211e;color:#ffb5aa}:root:not([data-theme="light"]) .status.PURGE_PENDING{background:#1b2d3a;color:#b5d9f3}}
+    @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .ack,:root:not([data-theme="light"]) .asset-row summary,:root:not([data-theme="light"]) .result small{color:var(--muted)}:root:not([data-theme="light"]) .asset-row details{border-color:var(--border)}:root:not([data-theme="light"]) button.danger{background:#3a211e;color:#ffb5aa;border-color:#5a302a}:root:not([data-theme="light"]) button.danger:hover{background:#4a2924}:root:not([data-theme="light"]) button.ghost{color:var(--muted)}}
+    @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .brand,:root:not([data-theme="light"]) .eyebrow{color:#9ccfb1}:root:not([data-theme="light"]) .admin-link{color:#99d5b1}:root:not([data-theme="light"]) .assetbox .id{color:#b5d3c1}:root:not([data-theme="light"]) .workspace-nav button.active,:root:not([data-theme="light"]) .code-tabs button.active{color:#91d9ae}}
+    :root[data-theme="dark"] body{background:radial-gradient(ellipse at 85% 0,#173a2b 0,transparent 34%),var(--page)}:root[data-theme="dark"] .step{background:#1c392b;color:#a7ddbd}:root[data-theme="dark"] .notice.error{background:#3a211e;color:#ffb5aa;border-color:#5a302a}:root[data-theme="dark"] .notice.success{background:#1c3528;color:#a9e0bd;border-color:#2d513c}:root[data-theme="dark"] .notice.info{background:#1b2d3a;color:#b5d9f3;border-color:#29485e}:root[data-theme="dark"] .warning{background:#332b19;color:#efd58e;border-color:#5b4a23}:root[data-theme="dark"] .connected{background:#1c3528;color:#b3e5c5;border-color:#2d513c}:root[data-theme="dark"] .result.ok .ico{background:#1c3528;color:#9cdbb5}:root[data-theme="dark"] .result.fail .ico{background:#3a211e;color:#ffb5aa}:root[data-theme="dark"] .result.running .ico{background:#1b2d3a;color:#b5d9f3}:root[data-theme="dark"] .status.ACTIVE{background:#1c3528;color:#a9e0bd}:root[data-theme="dark"] .status.DISABLED{background:#3c321e;color:#efd58e}:root[data-theme="dark"] .status.RETIRED{background:#2a3330;color:#c0cbc5}
+    @media(max-width:780px){.layout,.files-layout{grid-template-columns:1fr}.wrap{padding:20px 14px 48px}.hero{padding:26px 0 18px}.card{padding:17px}}
+    @media(max-width:540px){.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.topbar{align-items:flex-start}.top-actions{gap:5px;flex-wrap:wrap;justify-content:end}.tag{font-size:10px}h1{font-size:29px}.actions button{flex:1}.asset-filters{grid-template-columns:1fr 1fr}.asset-filters input{grid-column:1/-1}.asset-row-top{display:block}}
   </style>
 </head>
 <body>
   <main class="wrap">
-    <div class="topbar"><div class="brand"><span class="mark">CAS</span><span>CAS <span style="color:#91a198">/</span> TESTER</span></div><div class="top-actions"><a id="adminLink" class="admin-link hidden" href="#" target="_blank" rel="noopener">Buka dashboard</a><span id="connectionTag" class="tag"><i></i><span>Belum terhubung</span></span></div></div>
-    <header class="hero"><div class="eyebrow">Integration workspace</div><h1>CAS Tester</h1><p class="lead">Validasi koneksi dan application key, lalu uji upload, pembacaan metadata, dan download seperti alur integrasi aplikasi.</p></header>
-    <div class="layout">
-      <div class="stack">
+    <div class="topbar"><div class="brand"><span class="mark">CAS</span><span>CAS <span style="color:#91a198">/</span> ASSET WORKSPACE</span></div><div class="top-actions"><button id="themeToggle" class="secondary" type="button">Tema: Sistem</button><a id="adminLink" class="admin-link hidden" href="#" target="_blank" rel="noopener">Dashboard</a><span id="connectionTag" class="tag"><i></i><span>Belum terhubung</span></span><button id="openConnection" class="secondary" type="button">Koneksi</button></div></div>
+    <header class="hero"><div class="eyebrow">Asset workspace</div><h1>CAS Tester</h1><p class="lead">Kelola file milik aplikasi, unggah aset manual, lihat contoh API, dan jalankan tes integrasi dalam satu tempat.</p></header>
+    <nav class="workspace-nav" aria-label="Workspace"><button class="active" type="button" data-pane="filesPane">File manager</button><button type="button" data-pane="testPane">Tes integrasi</button><button type="button" data-pane="developerPane">API developer</button></nav>
+    <div id="connectionSummary" class="connected"></div>
+    <div id="filesPane" class="pane">
+      <div class="layout files-layout">
         <section class="card">
-          <div class="card-head"><div><h2>Koneksi aplikasi</h2><p>Data key hanya berada di memori halaman dan tidak dimasukkan ke laporan.</p></div><span class="step">01</span></div>
-          <div class="grid">
-            <div class="field full"><label for="baseUrl">Base URL CAS</label><input id="baseUrl" type="url" placeholder="https://cas.example.com" autocomplete="url" required></div>
-            <div class="field full"><label for="appKey">Application key</label><div class="keyline"><input id="appKey" type="password" autocomplete="off" spellcheck="false" placeholder="Tempel application key" required><button id="toggleKey" type="button" class="secondary iconbtn" aria-label="Tampilkan application key">◉</button></div></div>
-          </div>
-          <div class="actions"><button id="connect">Periksa koneksi &amp; key</button><button id="disconnect" class="secondary hidden" type="button">Putuskan</button></div>
-          <div id="connectNotice" class="notice" role="status" aria-live="polite"></div>
-          <div id="connected" class="connected"><span>●</span><div><strong id="appName"></strong><div id="appIdentity"></div></div></div>
+          <div class="card-head"><div><h2>Upload manual</h2><p>Unggah file dan metadata menggunakan application key yang sedang terhubung.</p></div></div>
+          <div class="warning"><span>!</span><div><b>Upload menyimpan file di CAS</b>File tidak dibersihkan otomatis. Setelah upload, Anda dapat mengajukan penghapusan logis dari daftar aset.</div></div>
+          <form id="manualUploadForm" class="stack-form"><div class="field"><label for="manualFile">Pilih file</label><input id="manualFile" type="file" required disabled></div><div class="field"><label for="manualMetadata">Metadata JSON (opsional)</label><textarea id="manualMetadata" spellcheck="false" disabled>{}</textarea></div><label class="ack"><input id="manualAck" type="checkbox" disabled><span>Saya memahami file akan tersimpan di CAS dan menggunakan environment yang tepat.</span></label><button id="manualUpload" type="submit" disabled>Upload ke CAS</button></form>
+          <div id="manualNotice" class="notice" role="status" aria-live="polite"></div>
         </section>
+        <section class="card">
+          <div class="card-head"><div><h2>Aset aplikasi</h2><p id="assetSummary">Hubungkan application key untuk melihat aset milik aplikasi ini.</p></div><button id="refreshAssets" class="secondary" type="button" disabled>Refresh</button></div>
+          <div class="asset-filters"><input id="assetSearch" type="search" placeholder="Cari nama file atau asset ID" disabled><select id="assetStatus" aria-label="Filter status" disabled><option value="">Semua status</option><option>ACTIVE</option><option>DELETE_PENDING</option><option>DELETE_BLOCKED</option><option>PURGE_PENDING</option></select><button id="searchAssets" class="secondary" type="button" disabled>Cari</button></div>
+          <div id="assetList" class="asset-list"><div class="empty">Belum terhubung.</div></div>
+          <div class="pager"><span id="pageInfo">—</span><div><button id="prevPage" class="secondary" type="button" disabled>Sebelumnya</button><button id="nextPage" class="secondary" type="button" disabled>Berikutnya</button></div></div>
+        </section>
+      </div>
+    </div>
+    <div id="testPane" class="pane hidden"><div class="layout">
+      <div class="stack">
         <section class="card">
           <div class="card-head"><div><h2>Konfigurasi aset uji</h2><p>Pilih file sungguhan atau biarkan kosong untuk membuat file contoh kecil.</p></div><span class="step">02</span></div>
           <div class="grid">
@@ -99,14 +129,41 @@
         </section>
         <p class="micro">Tester dijalankan langsung dari browser. Jika koneksi gagal, pastikan base URL dapat dijangkau dan CORS CAS mengizinkan origin <code>null</code> untuk file lokal.</p>
       </aside>
-    </div>
+    </div></div>
+    <section id="developerPane" class="card pane hidden">
+      <div class="card-head"><div><h2>Panduan integrasi API</h2><p>Contoh request siap disalin; ganti placeholder dengan base URL dan application key aplikasi.</p></div></div>
+      <div class="code-tabs"><button type="button" class="active" data-code="curlCode">cURL</button><button type="button" data-code="jsCode">JavaScript</button></div>
+      <pre id="curlCode" class="api-code"><code></code></pre><pre id="jsCode" class="api-code hidden"><code></code></pre>
+      <div class="actions"><button id="copyAPI" class="secondary" type="button">Salin contoh API</button></div>
+      <p class="micro">Application key dikirim melalui header <code>X-Application-Key</code>. Jangan menaruh key sungguhan di source code frontend yang dipublikasikan.</p>
+    </section>
+    <dialog id="connectionDialog" class="connection-dialog">
+      <form method="dialog" class="dialog-top"><div><span class="eyebrow">CAS connection</span><h2>Koneksi aplikasi</h2></div><button class="close-dialog" value="cancel" aria-label="Tutup">×</button></form>
+      <p class="dialog-lead">Masukkan Base URL dan application key. Key hanya disimpan di memori selama halaman ini terbuka.</p>
+      <div class="grid"><div class="field full"><label for="baseUrl">Base URL CAS</label><input id="baseUrl" type="url" placeholder="http://10.10.10.18:7000" autocomplete="url" required></div><div class="field full"><label for="appKey">Application key</label><div class="keyline"><input id="appKey" type="password" autocomplete="off" spellcheck="false" placeholder="Tempel application key" required><button id="toggleKey" type="button" class="secondary iconbtn" aria-label="Tampilkan application key">◉</button></div></div></div>
+      <div class="actions"><button id="connect" type="button">Periksa koneksi &amp; key</button><button id="disconnect" class="danger hidden" type="button">Putuskan koneksi</button></div>
+      <div id="connectNotice" class="notice" role="status" aria-live="polite"></div>
+    </dialog>
     <footer class="foot">Centralized Asset Service · CAS Tester tidak menyimpan application key setelah halaman ditutup.</footer>
   </main>
   <script>
     (() => {
       const $ = id => document.getElementById(id);
       let base = '', key = '', app = null, connected = false, activeController = null, assetCleanupRequested = true;
+      let assetPage = 0, assetLimit = 20, assetTotal = 0, activePane = 'filesPane';
       let checks = [], report = null, lastDownloadedBlob = null, lastFileName = '';
+      const themeModes=['system','light','dark'];
+      let themeMode='system';
+      try { themeMode=localStorage.getItem('casTesterTheme')||'system'; } catch {}
+      if(!themeModes.includes(themeMode))themeMode='system';
+
+      function applyTheme(){
+        if(themeMode==='system')document.documentElement.removeAttribute('data-theme');
+        else document.documentElement.setAttribute('data-theme',themeMode);
+        $('themeToggle').textContent=`Tema: ${themeMode==='system'?'Sistem':themeMode==='light'?'Terang':'Gelap'}`;
+      }
+      applyTheme();
+      $('themeToggle').addEventListener('click',()=>{themeMode=themeModes[(themeModes.indexOf(themeMode)+1)%themeModes.length];try{localStorage.setItem('casTesterTheme',themeMode)}catch{}applyTheme()});
 
       function log(message, level='INFO') {
         const node = $('log');
@@ -130,10 +187,18 @@
         $('connect').classList.toggle('hidden',value); $('disconnect').classList.toggle('hidden',!value);
         $('adminLink').classList.toggle('hidden',!value);if(value)$('adminLink').href=base+'/admin/';
         $('testFile').disabled=!value; $('metadata').disabled=!value; $('ackStorage').disabled=!value;
+        $('manualFile').disabled=!value;$('manualMetadata').disabled=!value;$('manualAck').disabled=!value;
+        $('assetSearch').disabled=!value;$('assetStatus').disabled=!value;$('searchAssets').disabled=!value;$('refreshAssets').disabled=!value;
+        const summary=$('connectionSummary');summary.replaceChildren();
+        if(value){const name=document.createElement('strong'),detail=document.createElement('span');name.textContent=app?.name||app?.application_id||'Aplikasi terhubung';detail.textContent=` ${app?.application_id||''} · ${app?.status||''}`;summary.append(name,detail)}
+        summary.classList.toggle('show',value);
         updateRunButton();
-        $('connected').classList.toggle('show',value);
+        updateManualUploadButton();
+        updateAPISamples();
+        if(!value){$('assetSummary').textContent='Hubungkan application key untuk melihat aset milik aplikasi ini.';const empty=document.createElement('div');empty.className='empty';empty.textContent='Belum terhubung.';$('assetList').replaceChildren(empty);$('pageInfo').textContent='—';$('prevPage').disabled=true;$('nextPage').disabled=true}
       }
       function updateRunButton() { $('runTest').disabled=!(connected&&$('ackStorage').checked&&assetCleanupRequested&&!activeController); }
+      function updateManualUploadButton() { $('manualUpload').disabled=!(connected&&$('manualAck').checked&&$('manualFile').files.length>0); }
       async function timedFetch(url, options={}, signal=null) {
         const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(new Error('Request timeout (120 detik).')),120000);
         if (signal) {
@@ -157,6 +222,65 @@
         if(!response.ok) throw new Error(`${body?.message||`HTTP ${response.status}`} · request ${requestId}`);
         return {response,body,requestId};
       }
+      function updateAPISamples(){
+        const origin=base||'https://cas.example.com';
+        const curl=`# Daftar aset milik aplikasi (maks. 100 per halaman)\ncurl --get "${origin}/api/v1/assets" \\\n  --data-urlencode "limit=20" \\\n  -H "X-Application-Key: $CAS_APPLICATION_KEY"\n\n# Upload file dan metadata JSON\ncurl "${origin}/api/v1/assets" \\\n  -H "X-Application-Key: $CAS_APPLICATION_KEY" \\\n  -F "file=@./dokumen.pdf" \\\n  -F 'metadata={"source":"my-app"}'\n\n# Baca metadata dan unduh konten\ncurl "${origin}/api/v1/assets/{asset_id}" -H "X-Application-Key: $CAS_APPLICATION_KEY"\ncurl "${origin}/api/v1/assets/{asset_id}/content" -H "X-Application-Key: $CAS_APPLICATION_KEY" -o dokumen.pdf`;
+        const js=[
+          `const CAS_BASE_URL = "${origin}";`,
+          'const APP_KEY = "<APPLICATION_KEY>"; // Simpan key di backend, bukan frontend publik',
+          'const headers = { "X-Application-Key": APP_KEY };',
+          '',
+          '// Daftar aset milik aplikasi',
+          'const list = await fetch(CAS_BASE_URL + "/api/v1/assets?limit=20", { headers });',
+          'const assets = (await list.json()).data;',
+          '',
+          '// Upload multipart dan metadata',
+          'const form = new FormData();',
+          'form.append("file", fileInput.files[0]);',
+          'form.append("metadata", JSON.stringify({ source: "my-app" }));',
+          'const created = await fetch(CAS_BASE_URL + "/api/v1/assets", { method: "POST", headers, body: form });',
+          'const { data } = await created.json();',
+          '',
+          '// Metadata / download',
+          'const metadata = await fetch(CAS_BASE_URL + "/api/v1/assets/" + data.asset_id, { headers });',
+          'const content = await fetch(CAS_BASE_URL + "/api/v1/assets/" + data.asset_id + "/content", { headers });'
+        ].join(String.fromCharCode(10));
+        $('curlCode').querySelector('code').textContent=curl;$('jsCode').querySelector('code').textContent=js;
+      }
+      function showNotice(id,message,kind){notice(id,message,kind)}
+      async function loadAssets(){
+        if(!connected)return;
+        $('assetList').classList.add('loading');
+        try{
+          const params=new URLSearchParams({limit:String(assetLimit),offset:String(assetPage*assetLimit)});
+          const q=$('assetSearch').value.trim(),status=$('assetStatus').value;if(q)params.set('q',q);if(status)params.set('status',status);
+          const result=await api(`/api/v1/assets?${params}`),assets=result.body?.data||[],pagination=result.body?.pagination||{};
+          assetTotal=Number(pagination.total)||0;renderAssets(assets);$('assetSummary').textContent=`${assetTotal.toLocaleString()} aset milik ${app?.name||app?.application_id||'aplikasi'}`;
+          const first=assetTotal?assetPage*assetLimit+1:0,last=Math.min((assetPage+1)*assetLimit,assetTotal);$('pageInfo').textContent=`${first}–${last} dari ${assetTotal}`;
+          $('prevPage').disabled=assetPage===0;$('nextPage').disabled=(assetPage+1)*assetLimit>=assetTotal;
+        }finally{$('assetList').classList.remove('loading')}
+      }
+      function renderAssets(assets){
+        const root=$('assetList');root.replaceChildren();
+        if(!assets.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='Tidak ada aset yang cocok dengan filter.';root.append(empty);return}
+        for(const asset of assets){
+          const row=document.createElement('article');row.className='asset-row';
+          const top=document.createElement('div');top.className='asset-row-top';const identity=document.createElement('div');
+          const name=document.createElement('div');name.className='asset-name';name.textContent=asset.original_filename||'(tanpa nama)';
+          const id=document.createElement('div');id.className='asset-id';id.textContent=asset.asset_id;identity.append(name,id);
+          const status=document.createElement('span');status.className=`status ${asset.asset_status||''}`;status.textContent=asset.asset_status||'UNKNOWN';top.append(identity,status);row.append(top);
+          const tags=document.createElement('div');tags.className='asset-tags';
+          for(const value of [asset.mime_type||'unknown',formatBytes(asset.size_bytes),formatDate(asset.created_at)]){const tag=document.createElement('span');tag.textContent=value;tags.append(tag)}row.append(tags);
+          const actions=document.createElement('div');actions.className='asset-row-actions';
+          const download=document.createElement('button');download.className='secondary';download.type='button';download.textContent='Unduh';download.addEventListener('click',()=>downloadListedAsset(asset,download));actions.append(download);
+          const remove=document.createElement('button');remove.className='danger';remove.type='button';remove.textContent=asset.asset_status==='ACTIVE'?'Ajukan hapus':'Status nonaktif';remove.disabled=asset.asset_status!=='ACTIVE';remove.addEventListener('click',()=>deleteListedAsset(asset,remove));actions.append(remove);row.append(actions);
+          const details=document.createElement('details'),summary=document.createElement('summary'),metadata=document.createElement('pre');summary.textContent='Lihat checksum dan metadata';metadata.textContent=JSON.stringify({checksum:asset.checksum,metadata:asset.metadata||{}},null,2);details.append(summary,metadata);row.append(details);root.append(row);
+        }
+      }
+      function formatBytes(value){const size=Number(value)||0;if(size<1024)return `${size} B`;if(size<1048576)return `${(size/1024).toFixed(1)} KB`;return `${(size/1048576).toFixed(2)} MB`}
+      function formatDate(value){const date=new Date(value);return Number.isNaN(date.valueOf())?'':date.toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}
+      async function downloadListedAsset(asset,button){button.disabled=true;try{const result=await api(`/api/v1/assets/${encodeURIComponent(asset.asset_id)}/content`);downloadBlob(await result.response.blob(),asset.original_filename||`cas-${asset.asset_id}.bin`);log(`Unduh aset ${asset.asset_id} berhasil (${result.requestId}).`,'OK')}catch(error){log(`Unduh gagal: ${error.message}`,'GAGAL');notice('manualNotice',error.message,'error')}finally{button.disabled=false}}
+      async function deleteListedAsset(asset,button){if(!confirm(`Ajukan penghapusan logis untuk “${asset.original_filename}”? File fisik tidak langsung dihapus.`))return;button.disabled=true;try{const result=await api(`/api/v1/assets/${encodeURIComponent(asset.asset_id)}`,{method:'DELETE'});log(`Penghapusan logis ${asset.asset_id}: ${result.body?.data?.asset_status||'diajukan'} (${result.requestId}).`,'OK');await loadAssets()}catch(error){notice('manualNotice',error.message,'error');log(`Penghapusan gagal: ${error.message}`,'GAGAL')}finally{button.disabled=false}}
       function renderChecks() {
         const root=$('results'); root.replaceChildren();
         for(const check of checks) {
@@ -187,6 +311,12 @@
         if(!value||Array.isArray(value)||typeof value!=='object')throw new Error('Metadata harus berupa objek JSON, bukan array atau nilai tunggal.');
         return value;
       }
+      function parseObject(text, optional=false) {
+        const raw=text.trim();if(!raw&&optional)return {};
+        let value;try{value=JSON.parse(raw)}catch{throw new Error('Metadata harus berupa JSON yang valid.')}
+        if(!value||Array.isArray(value)||typeof value!=='object')throw new Error('Metadata harus berupa objek JSON.')
+        return value;
+      }
       function fixtureFile() {
         const text=`CAS integration test\nCreated: ${new Date().toISOString()}\nThis file was generated by cas-tester.html.\n`;
         return new File([text],`cas-test-${Date.now()}.txt`,{type:'text/plain'});
@@ -206,6 +336,40 @@
       function downloadBlob(blob,name) {
         const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
       }
+      $('openConnection').addEventListener('click',()=>{if(!$('connectionDialog').open)$('connectionDialog').showModal()});
+      document.querySelectorAll('.workspace-nav button').forEach(button=>button.addEventListener('click',()=>{
+        activePane=button.dataset.pane;document.querySelectorAll('.workspace-nav button').forEach(item=>item.classList.toggle('active',item===button));
+        for(const id of ['filesPane','testPane','developerPane'])$(id).classList.toggle('hidden',id!==activePane);
+      }));
+      $('manualFile').addEventListener('change',updateManualUploadButton);$('manualAck').addEventListener('change',updateManualUploadButton);
+      $('manualUploadForm').addEventListener('submit',async event=>{
+        event.preventDefault();if(!connected)return;
+        const file=$('manualFile').files[0];if(!file){notice('manualNotice','Pilih file yang akan diunggah.','error');return}
+        if(!$('manualAck').checked){notice('manualNotice','Konfirmasi penyimpanan file terlebih dahulu.','error');return}
+        let metadata;try{metadata=parseObject($('manualMetadata').value,true)}catch(error){notice('manualNotice',error.message,'error');return}
+        const button=$('manualUpload');button.disabled=true;$('manualNotice').className='notice';
+        try{
+          const form=new FormData();form.append('file',file,file.name);form.append('metadata',JSON.stringify(metadata));
+          const result=await api('/api/v1/assets',{method:'POST',body:form}),asset=result.body?.data;
+          if(!asset?.asset_id)throw new Error('Respons upload tidak menyertakan asset_id.');
+          notice('manualNotice',`Upload berhasil. Asset ID: ${asset.asset_id}`,'success');log(`Upload manual ${file.name} berhasil: ${asset.asset_id} (${result.requestId}).`,'OK');
+          $('manualUploadForm').reset();assetPage=0;updateManualUploadButton();await loadAssets();
+        }catch(error){notice('manualNotice',error.message,'error');log(`Upload manual gagal: ${error.message}`,'GAGAL')}
+        finally{updateManualUploadButton()}
+      });
+      $('refreshAssets').addEventListener('click',()=>loadAssets().catch(error=>notice('manualNotice',error.message,'error')));
+      $('searchAssets').addEventListener('click',()=>{assetPage=0;loadAssets().catch(error=>notice('manualNotice',error.message,'error'))});
+      $('assetSearch').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();$('searchAssets').click()}});
+      $('assetStatus').addEventListener('change',()=>{assetPage=0;loadAssets().catch(error=>notice('manualNotice',error.message,'error'))});
+      $('prevPage').addEventListener('click',()=>{if(assetPage>0){assetPage--;loadAssets().catch(error=>notice('manualNotice',error.message,'error'))}});
+      $('nextPage').addEventListener('click',()=>{if((assetPage+1)*assetLimit<assetTotal){assetPage++;loadAssets().catch(error=>notice('manualNotice',error.message,'error'))}});
+      document.querySelectorAll('.code-tabs button').forEach(button=>button.addEventListener('click',()=>{
+        document.querySelectorAll('.code-tabs button').forEach(item=>item.classList.toggle('active',item===button));
+        $('curlCode').classList.toggle('hidden',button.dataset.code!=='curlCode');$('jsCode').classList.toggle('hidden',button.dataset.code!=='jsCode');
+      }));
+      $('copyAPI').addEventListener('click',async()=>{const active=document.querySelector('.code-tabs button.active')?.dataset.code||'curlCode';try{await navigator.clipboard.writeText($(active).querySelector('code').textContent);$('copyAPI').textContent='Tersalin';setTimeout(()=>$('copyAPI').textContent='Salin contoh API',1400)}catch{notice('manualNotice','Clipboard tidak tersedia. Pilih dan salin kode secara manual.','info')}});
+      updateAPISamples();
+      if(!$('connectionDialog').open)$('connectionDialog').showModal();
       $('toggleKey').addEventListener('click',()=>{const input=$('appKey'),visible=input.type==='password';input.type=visible?'text':'password';$('toggleKey').setAttribute('aria-label',visible?'Sembunyikan application key':'Tampilkan application key')});
       $('connect').addEventListener('click',async()=>{
         $('connect').disabled=true;$('connectNotice').className='notice';
@@ -219,17 +383,16 @@
           app=identity.body?.data;
           if(!app?.application_id)throw new Error('Respons identitas aplikasi tidak memuat application_id.');
           if(app.status!=='ACTIVE')throw new Error(`Aplikasi berstatus ${app.status}; application key tidak dapat dipakai untuk upload.`);
-          $('appName').textContent=app.name||app.application_id;
-          $('appIdentity').textContent=`${app.application_id} · ${app.status} · request ${identity.requestId}`;
           $('connectNotice').className='notice';
-          setConnected(true);clearChecks();
+          setConnected(true);clearChecks();assetPage=0;$('connectionDialog').close();
           notice('connectNotice','Koneksi CAS dan application key valid.','success');
           log(`Application key valid untuk ${app.application_id} (${identity.requestId}).`,'OK');
+          loadAssets().catch(error=>notice('manualNotice',error.message,'error'));
         } catch(error) {
           key='';app=null;setConnected(false);notice('connectNotice',error.message,'error');log(error.message,'GAGAL');
         } finally { $('connect').disabled=false; }
       });
-      $('disconnect').addEventListener('click',()=>{if(!assetCleanupRequested){notice('testNotice','Ajukan penghapusan logis aset uji terlebih dahulu agar asset ID tidak hilang dari sesi ini.','info');return}key='';base='';app=null;$('appKey').value='';$('appKey').type='password';$('baseUrl').disabled=false;$('appKey').disabled=false;$('baseUrl').value='';$('testFile').value='';$('metadata').value='{}';$('ackStorage').checked=false;setConnected(false);clearChecks();$('appName').textContent='';$('appIdentity').textContent='';$('connectNotice').className='notice';log('Koneksi diputus; application key dibersihkan dari memori.');});
+      $('disconnect').addEventListener('click',()=>{if(!assetCleanupRequested){notice('testNotice','Ajukan penghapusan logis aset uji terlebih dahulu agar asset ID tidak hilang dari sesi ini.','info');return}key='';base='';app=null;$('appKey').value='';$('appKey').type='password';$('baseUrl').disabled=false;$('appKey').disabled=false;$('baseUrl').value='';$('testFile').value='';$('metadata').value='{}';$('ackStorage').checked=false;$('manualAck').checked=false;setConnected(false);clearChecks();$('connectNotice').className='notice';$('connectionDialog').close();log('Koneksi diputus; application key dibersihkan dari memori.');});
       $('ackStorage').addEventListener('change',updateRunButton);
       $('runTest').addEventListener('click',async()=>{
         if(!connected||!$('ackStorage').checked)return;
@@ -249,6 +412,7 @@
           if(!assetId)throw new Error('Upload tidak mengembalikan asset_id.');
           uploaded=true;assetCleanupRequested=false;$('cancelTest').disabled=false;report.asset_id=assetId;report.upload_request_id=upload.requestId;
           $('assetId').textContent=assetId;lastFileName=file.name;$('assetFacts').textContent=`${file.name} · ${file.size.toLocaleString()} byte · ${data.mime_type||file.type||'application/octet-stream'}`;$('assetState').textContent=data.asset_status||'ACTIVE';$('assetBox').classList.remove('hidden');
+          loadAssets().catch(error=>log(`Daftar aset belum dapat diperbarui: ${error.message}`,'PERINGATAN'));
           setCheck('Upload file','ok',`HTTP ${upload.response.status} · ${upload.requestId}`);log(`Upload berhasil: ${assetId} (${upload.requestId}).`,'OK');
           setCheck('Verifikasi metadata','running','Memeriksa filename, ukuran, checksum, dan metadata.');
           const meta=await api(`/api/v1/assets/${encodeURIComponent(assetId)}`,{},true,activeController.signal),asset=meta.body?.data;
@@ -294,6 +458,7 @@
           button.disabled=true;button.textContent='Permintaan diajukan';
           assetCleanupRequested=true;updateRunButton();
           if(report){report.deletion_status=status;report.deletion_request_id=result.requestId}
+          loadAssets().catch(error=>log(`Daftar aset belum dapat diperbarui: ${error.message}`,'PERINGATAN'));
         }catch(error){notice('testNotice',error.message,'error');log(error.message,'GAGAL')}
         finally{button.disabled=false}
       });

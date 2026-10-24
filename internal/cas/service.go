@@ -74,6 +74,7 @@ func (s *Service) route(w http.ResponseWriter, r *http.Request) {
 	r = contextWithActor(r,a)
 	switch {
 	case r.Method==http.MethodPost && r.URL.Path=="/api/v1/assets": s.upload(w,r,a)
+	case r.Method==http.MethodGet && r.URL.Path=="/api/v1/assets": s.listAssets(w,r,a)
 	case r.Method==http.MethodGet && r.URL.Path=="/api/v1/applications/me": s.applicationMe(w,r,a)
 	case strings.HasPrefix(r.URL.Path,"/api/v1/assets/"): s.assetRoutes(w,r,a)
 	case strings.HasPrefix(r.URL.Path,"/api/v1/admin/local-users") && a.Role=="SUPER_ADMIN": s.adminLocalUsers(w,r)
