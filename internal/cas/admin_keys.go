@@ -152,6 +152,31 @@ func (s *Service) adminApplicationKeys(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"status": true, "data": map[string]string{"key_id": keyID, "status": "REVOKED"}})
 		return
 	}
+	if len(parts) == 3 && parts[1] == "keys" && r.Method == http.MethodPatch {
+		var input struct {
+			Permissions []string `json:"permissions"`
+		}
+		if decodeJSON(r, &input) != nil || len(input.Permissions) == 0 || len(input.Permissions) > len(applicationKeyPermissions) {
+			fail(w, http.StatusUnprocessableEntity, "select at least one supported permission")
+			return
+		}
+		seen := map[string]bool{}
+		for _, permission := range input.Permissions {
+			if !applicationKeyPermissions[permission] || seen[permission] {
+				fail(w, http.StatusUnprocessableEntity, "permissions contains an unsupported or duplicate value")
+				return
+			}
+			seen[permission] = true
+		}
+		permissions, _ := json.Marshal(input.Permissions)
+		tag, err := s.db.Exec(r.Context(), `UPDATE application_keys SET permissions=$1 WHERE id=$2 AND application_id=$3 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now())`, permissions, parts[2], appID)
+		if err != nil || tag.RowsAffected() != 1 {
+			fail(w, http.StatusNotFound, "active application key not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": true, "data": map[string]any{"key_id": parts[2], "permissions": input.Permissions}})
+		return
+	}
 	fail(w, http.StatusMethodNotAllowed, "method not allowed")
 }
 

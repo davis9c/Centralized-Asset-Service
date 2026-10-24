@@ -42,6 +42,7 @@ Semua endpoint API di bawah memakai JSON response dengan `status`, `message`, da
 | PATCH | `/api/v1/admin/applications/{id}` | Status `ACTIVE`, `DISABLED`, atau `RETIRED` |
 | GET/POST | `/api/v1/admin/applications/{id}/keys` | Daftar dan buat API key dengan label, lingkungan, izin, dan masa aktif |
 | DELETE | `/api/v1/admin/applications/{id}/keys/{key_id}` | Cabut satu API key tanpa mencabut key lain |
+| PATCH | `/api/v1/admin/applications/{id}/keys/{key_id}` | Ubah permission API key aktif (`{"permissions":["assets.read"]}`) |
 | GET | `/api/v1/admin/assets` | Explorer metadata terbatas (maksimum 200) |
 | GET | `/api/v1/admin/audit` | Audit terbaru (maksimum 200) |
 
