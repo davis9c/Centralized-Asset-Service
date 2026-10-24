@@ -17,6 +17,8 @@ Tidak ada proses build atau server yang dijalankan selama penulisan ini. Jangan 
 - Administrator memakai `Authorization: Bearer ...` dan `X-API-Key` server ke server ke endpoint UserGate `GET /auth/me`. Rute admin hanya menerima `SUPER_ADMIN` sesuai API Reference yang disediakan.
 - API key UserGate tidak boleh dikirim ke browser.
 
+Dashboard manajemen aplikasi tersedia di `GET /admin/`. Masukkan UserGate access token aktif milik administrator `SUPER_ADMIN`; token tetap di memori tab dan hilang saat halaman dimuat ulang. Dashboard dapat melihat aplikasi, mendaftarkan aplikasi baru, dan mengubah statusnya. Application key baru hanya tampil satu kali setelah dibuat.
+
 ## Endpoint MVP
 
 Semua endpoint API di bawah memakai JSON response dengan `status`, `message`, dan/atau `data`.

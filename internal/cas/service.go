@@ -28,11 +28,19 @@ var userGateHTTP = &http.Client{Timeout: 5 * time.Second}
 func New(db *pgxpool.Pool, storage string, max int64, ug UserGate) *Service { return &Service{db:db, storage:storage, maxUpload:max, userGate:ug} }
 func (s *Service) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /admin", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/admin/", http.StatusTemporaryRedirect) })
+	mux.HandleFunc("GET /admin/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/admin/" { http.NotFound(w, r); return }
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+		_, _ = w.Write(adminHTML)
+	})
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" { http.NotFound(w, r); return }
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		_, _ = io.WriteString(w, `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CAS</title><style>body{font:16px system-ui,sans-serif;max-width:760px;margin:10vh auto;padding:0 24px;color:#17212b}h1{font-size:2.2rem;margin-bottom:.25rem}p{line-height:1.6;color:#425466}code{background:#f1f4f7;padding:3px 6px;border-radius:4px}a{color:#0759b8}li{margin:.6rem 0}</style></head><body><h1>Centralized Asset Service</h1><p>CAS API aktif. Halaman ini hanya informasi layanan; pengelolaan dilakukan melalui API.</p><p>Status layanan: <a href="/healthz">health check</a></p><h2>Endpoint utama</h2><ul><li><code>POST /api/v1/assets</code> — upload file</li><li><code>GET /api/v1/assets/{id}</code> — metadata aset</li><li><code>GET /api/v1/assets/{id}/content</code> — download atau streaming</li><li><code>/api/v1/admin/...</code> — operasi admin (perlu token UserGate)</li></ul><p>Semua endpoint API memerlukan autentikasi. Lihat README proyek untuk kontrak, header, dan contoh konfigurasi.</p></body></html>`)
+		_, _ = io.WriteString(w, `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CAS</title><style>body{font:16px system-ui,sans-serif;max-width:760px;margin:10vh auto;padding:0 24px;color:#17212b}h1{font-size:2.2rem;margin-bottom:.25rem}p{line-height:1.6;color:#425466}code{background:#f1f4f7;padding:3px 6px;border-radius:4px}a{color:#0759b8}li{margin:.6rem 0}</style></head><body><h1>Centralized Asset Service</h1><p>CAS API aktif.</p><p><a href="/admin/">Buka dashboard admin</a> · <a href="/healthz">Health check</a></p><h2>Endpoint utama</h2><ul><li><code>POST /api/v1/assets</code> — upload file</li><li><code>GET /api/v1/assets/{id}</code> — metadata aset</li><li><code>GET /api/v1/assets/{id}/content</code> — download atau streaming</li></ul><p>API memerlukan autentikasi. Lihat README proyek untuk kontrak dan konfigurasi.</p></body></html>`)
 	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { writeJSON(w,200,map[string]any{"status":true,"data":map[string]string{"state":"ok"}}) })
 	mux.Handle("/api/v1/", http.HandlerFunc(s.route))
