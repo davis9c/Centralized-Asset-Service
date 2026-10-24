@@ -1,0 +1,39 @@
+services:
+  cas:
+    build: .
+    ports:
+      - "${CAS_PORT:-8080}:8080"
+    environment:
+      CAS_ADDR: ":8080"
+      CAS_DATABASE_URL: "postgres://cas:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/cas?sslmode=disable"
+      CAS_STORAGE_DIR: /data
+      CAS_BOOTSTRAP_APP_ID: ${CAS_BOOTSTRAP_APP_ID:-}
+      CAS_BOOTSTRAP_APP_KEY: ${CAS_BOOTSTRAP_APP_KEY:-}
+      USERGATE_BASE_URL: ${USERGATE_BASE_URL:-https://usergate.sandalgurun.web.id/api/v1}
+      USERGATE_API_KEY: ${USERGATE_API_KEY:-}
+      CAS_MAX_UPLOAD_BYTES: ${CAS_MAX_UPLOAD_BYTES:-52428800}
+    volumes:
+      - cas_data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: cas
+      POSTGRES_USER: cas
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cas -d cas"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  cas_data:
+  postgres_data:

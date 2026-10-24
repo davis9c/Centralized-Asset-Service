@@ -1,0 +1,54 @@
+package cas
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"strings"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+const schema = `
+CREATE TABLE IF NOT EXISTS applications (
+ id text PRIMARY KEY, name text NOT NULL, key_hash text NOT NULL, status text NOT NULL DEFAULT 'ACTIVE', created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS assets (
+ id text PRIMARY KEY, owner_application_id text NOT NULL REFERENCES applications(id), original_filename text NOT NULL,
+ mime_type text NOT NULL, size_bytes bigint NOT NULL, checksum text NOT NULL, storage_key text NOT NULL,
+ metadata jsonb NOT NULL DEFAULT '{}'::jsonb, status text NOT NULL DEFAULT 'ACTIVE', delete_requested_by text,
+ delete_requested_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS assets_owner_idx ON assets(owner_application_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS asset_references (
+ id text PRIMARY KEY, asset_id text NOT NULL REFERENCES assets(id), application_id text NOT NULL REFERENCES applications(id),
+ entity_id text NOT NULL, active boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL DEFAULT now(), deactivated_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS refs_asset_idx ON asset_references(asset_id, active);
+CREATE TABLE IF NOT EXISTS access_grants (
+ id text PRIMARY KEY, asset_id text NOT NULL REFERENCES assets(id), application_id text NOT NULL REFERENCES applications(id),
+ action text NOT NULL, granted_by text NOT NULL, active boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL DEFAULT now(), revoked_at timestamptz,
+ UNIQUE(asset_id, application_id, action)
+);
+CREATE TABLE IF NOT EXISTS audit_events (
+ id text PRIMARY KEY, actor_application_id text NOT NULL, action text NOT NULL, asset_id text, result text NOT NULL,
+ request_id text NOT NULL, created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS audit_created_idx ON audit_events(created_at DESC);
+`
+
+func Migrate(ctx context.Context, db *pgxpool.Pool) error {
+	for _, statement := range strings.Split(schema, ";") {
+		if strings.TrimSpace(statement) == "" { continue }
+		if _, err := db.Exec(ctx, statement); err != nil { return err }
+	}
+	return nil
+}
+
+func BootstrapApp(ctx context.Context, db *pgxpool.Pool, id, key string) error {
+	id = strings.TrimSpace(id)
+	if id == "" || len(key) < 32 { return errBootstrapKey }
+	h := sha256.Sum256([]byte(key))
+	_, err := db.Exec(ctx, `INSERT INTO applications(id,name,key_hash,status) VALUES($1,$1,$2,'ACTIVE') ON CONFLICT(id) DO NOTHING`, id, hex.EncodeToString(h[:]))
+	return err
+}
