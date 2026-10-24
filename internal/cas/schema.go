@@ -16,9 +16,11 @@ CREATE TABLE IF NOT EXISTS applications (
 CREATE TABLE IF NOT EXISTS application_keys (
  id text PRIMARY KEY, application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
  label text NOT NULL, environment text NOT NULL, key_prefix text NOT NULL, key_hash text NOT NULL UNIQUE,
- permissions jsonb NOT NULL DEFAULT '[]'::jsonb, expires_at timestamptz, last_used_at timestamptz,
+ permissions jsonb NOT NULL DEFAULT '[]'::jsonb, expires_at timestamptz, usage_count bigint NOT NULL DEFAULT 0, usage_limit bigint, last_used_at timestamptz,
  revoked_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE application_keys ADD COLUMN IF NOT EXISTS usage_count bigint NOT NULL DEFAULT 0;
+ALTER TABLE application_keys ADD COLUMN IF NOT EXISTS usage_limit bigint;
 CREATE INDEX IF NOT EXISTS application_keys_app_idx ON application_keys(application_id,created_at DESC);
 INSERT INTO application_keys(id,application_id,label,environment,key_prefix,key_hash,permissions)
  SELECT 'legacy:'||id,id,'Legacy application key','CLIENT','legacy',key_hash,

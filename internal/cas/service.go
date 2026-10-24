@@ -104,11 +104,14 @@ func (s *Service) authenticateApp(r *http.Request) (actor,error) {
 	h:=sha256.Sum256([]byte(key)); keyHash:=hex.EncodeToString(h[:])
 	var keyID, appID string
 	var rawPermissions []byte
-	err:=s.db.QueryRow(r.Context(),`SELECT k.id,k.application_id,k.permissions FROM application_keys k JOIN applications a ON a.id=k.application_id WHERE k.key_hash=$1 AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at>now()) AND a.status='ACTIVE'`,keyHash).Scan(&keyID,&appID,&rawPermissions)
+	err:=s.db.QueryRow(r.Context(),`UPDATE application_keys k SET usage_count=k.usage_count+1,last_used_at=now()
+		WHERE k.key_hash=$1 AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at>now())
+		AND (k.usage_limit IS NULL OR k.usage_count<k.usage_limit)
+		AND EXISTS(SELECT 1 FROM applications a WHERE a.id=k.application_id AND a.status='ACTIVE')
+		RETURNING k.id,k.application_id,k.permissions`,keyHash).Scan(&keyID,&appID,&rawPermissions)
 	if err==nil {
 		var permissions []string
 		if json.Unmarshal(rawPermissions,&permissions)!=nil { return actor{},fmt.Errorf("unauthorized") }
-		_,_=s.db.Exec(r.Context(),`UPDATE application_keys SET last_used_at=now() WHERE id=$1`,keyID)
 		return actor{AppID:appID,KeyID:keyID,Permissions:permissions},nil
 	}
 	if err!=pgx.ErrNoRows { return actor{},fmt.Errorf("unauthorized") }

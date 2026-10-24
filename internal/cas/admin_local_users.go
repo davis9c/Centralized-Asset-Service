@@ -27,8 +27,6 @@ func (s *Service) adminLocalUsers(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		s.listLocalUsers(w, r)
-	case http.MethodPost:
-		s.createLocalUser(w, r)
 	default:
 		fail(w, http.StatusMethodNotAllowed, "method not allowed")
 	}
@@ -48,21 +46,6 @@ func (s *Service) listLocalUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	if rows.Err() != nil { fail(w, http.StatusInternalServerError, "local users unavailable"); return }
 	writeJSON(w, http.StatusOK, map[string]any{"data": users})
-}
-
-func (s *Service) createLocalUser(w http.ResponseWriter, r *http.Request) {
-	var in struct { UserID string `json:"user_id"`; Username string `json:"username"`; FullName string `json:"full_name"`; Role string `json:"role"` }
-	if decodeJSON(r, &in) != nil || strings.TrimSpace(in.UserID) == "" || strings.TrimSpace(in.Username) == "" || strings.TrimSpace(in.FullName) == "" || len(in.UserID) > 255 || len(in.Username) > 150 || len(in.FullName) > 200 || (in.Role != "" && !validLocalRole(in.Role)) {
-		fail(w, http.StatusUnprocessableEntity, "user_id, username, full_name, and a valid optional role are required")
-		return
-	}
-	var role any
-	if in.Role != "" { role = in.Role }
-	a := r.Context().Value(actorKey).(actor)
-	_, err := s.db.Exec(r.Context(), `INSERT INTO cas_local_users(user_id,username,full_name,role,created_by) VALUES($1,$2,$3,$4,$5)`, strings.TrimSpace(in.UserID), strings.TrimSpace(in.Username), strings.TrimSpace(in.FullName), role, actorName(a))
-	if err != nil { fail(w, http.StatusConflict, "local user already exists or could not be created"); return }
-	s.audit(r, a, "local_user.create", "", "success")
-	writeJSON(w, http.StatusCreated, map[string]any{"status": true, "message": "local user created", "data": map[string]any{"user_id": strings.TrimSpace(in.UserID), "username": strings.TrimSpace(in.Username), "full_name": strings.TrimSpace(in.FullName), "role": in.Role, "active": validLocalRole(in.Role)}})
 }
 
 func (s *Service) updateLocalUserRole(w http.ResponseWriter, r *http.Request, id, role string) {

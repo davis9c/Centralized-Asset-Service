@@ -30,7 +30,7 @@ func (s *Service) adminApplicationKeys(w http.ResponseWriter, r *http.Request) {
 	}
 	appID := parts[0]
 	if len(parts) == 2 && r.Method == http.MethodGet {
-		rows, err := s.db.Query(r.Context(), `SELECT k.id,k.label,k.environment,k.key_prefix,k.permissions,k.expires_at,k.last_used_at,k.revoked_at,k.created_at,a.status
+		rows, err := s.db.Query(r.Context(), `SELECT k.id,k.label,k.environment,k.key_prefix,k.permissions,k.expires_at,k.usage_count,k.usage_limit,k.last_used_at,k.revoked_at,k.created_at,a.status
 			FROM application_keys k JOIN applications a ON a.id=k.application_id WHERE k.application_id=$1 ORDER BY k.created_at DESC`, appID)
 		if err != nil {
 			fail(w, http.StatusInternalServerError, "application keys unavailable")
@@ -42,9 +42,11 @@ func (s *Service) adminApplicationKeys(w http.ResponseWriter, r *http.Request) {
 			var id, label, environment, prefix string
 			var rawPermissions []byte
 			var expiresAt, lastUsedAt, revokedAt *time.Time
+			var usageLimit *int64
+			var usageCount int64
 			var createdAt time.Time
 			var appStatus string
-			if err := rows.Scan(&id, &label, &environment, &prefix, &rawPermissions, &expiresAt, &lastUsedAt, &revokedAt, &createdAt, &appStatus); err != nil {
+			if err := rows.Scan(&id, &label, &environment, &prefix, &rawPermissions, &expiresAt, &usageCount, &usageLimit, &lastUsedAt, &revokedAt, &createdAt, &appStatus); err != nil {
 				fail(w, http.StatusInternalServerError, "application keys unavailable")
 				return
 			}
@@ -54,7 +56,7 @@ func (s *Service) adminApplicationKeys(w http.ResponseWriter, r *http.Request) {
 			}
 			active := appStatus == "ACTIVE" && revokedAt == nil && (expiresAt == nil || expiresAt.After(time.Now()))
 			keys = append(keys, map[string]any{"key_id": id, "label": label, "environment": environment, "key_prefix": prefix,
-				"permissions": permissions, "expires_at": expiresAt, "last_used_at": lastUsedAt, "revoked_at": revokedAt,
+				"permissions": permissions, "expires_at": expiresAt, "usage_count": usageCount, "usage_limit": usageLimit, "last_used_at": lastUsedAt, "revoked_at": revokedAt,
 				"created_at": createdAt, "active": active})
 		}
 		if rows.Err() != nil {
@@ -70,6 +72,7 @@ func (s *Service) adminApplicationKeys(w http.ResponseWriter, r *http.Request) {
 			Environment string   `json:"environment"`
 			Permissions []string `json:"permissions"`
 			DurationDays *int    `json:"duration_days"`
+			UsageLimit   *int64  `json:"usage_limit"`
 		}
 		if decodeJSON(r, &input) != nil {
 			fail(w, http.StatusUnprocessableEntity, "invalid key request")
@@ -92,6 +95,10 @@ func (s *Service) adminApplicationKeys(w http.ResponseWriter, r *http.Request) {
 		durationDays := *input.DurationDays
 		if durationDays != 7 && durationDays != 30 && durationDays != 90 && durationDays != 180 && durationDays != 365 && durationDays != 0 {
 			fail(w, http.StatusUnprocessableEntity, "duration_days must be 7, 30, 90, 180, 365, or 0 for no expiry")
+			return
+		}
+		if input.UsageLimit != nil && (*input.UsageLimit < 1 || *input.UsageLimit > 1000000000) {
+			fail(w, http.StatusUnprocessableEntity, "usage_limit must be between 1 and 1000000000; omit it for unlimited usage")
 			return
 		}
 		if len(input.Permissions) == 0 || len(input.Permissions) > len(applicationKeyPermissions) {
@@ -130,15 +137,15 @@ func (s *Service) adminApplicationKeys(w http.ResponseWriter, r *http.Request) {
 		if len(prefix) > 17 {
 			prefix = prefix[:17]
 		}
-		_, err := s.db.Exec(r.Context(), `INSERT INTO application_keys(id,application_id,label,environment,key_prefix,key_hash,permissions,expires_at)
-			VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, id, appID, input.Label, input.Environment, prefix, hex.EncodeToString(hash[:]), permissions, expiresAt)
+		_, err := s.db.Exec(r.Context(), `INSERT INTO application_keys(id,application_id,label,environment,key_prefix,key_hash,permissions,expires_at,usage_limit)
+			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, id, appID, input.Label, input.Environment, prefix, hex.EncodeToString(hash[:]), permissions, expiresAt, input.UsageLimit)
 		if err != nil {
 			fail(w, http.StatusConflict, "application key could not be created")
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"status": true, "message": "Copy this key now; it will not be shown again.", "data": map[string]any{
 			"key_id": id, "application_id": appID, "label": input.Label, "environment": input.Environment,
-			"application_key": secret, "key_prefix": prefix, "permissions": input.Permissions, "expires_at": expiresAt,
+			"application_key": secret, "key_prefix": prefix, "permissions": input.Permissions, "expires_at": expiresAt, "usage_limit": input.UsageLimit,
 		}})
 		return
 	}
@@ -154,27 +161,65 @@ func (s *Service) adminApplicationKeys(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(parts) == 3 && parts[1] == "keys" && r.Method == http.MethodPatch {
 		var input struct {
-			Permissions []string `json:"permissions"`
+			Permissions *[]string        `json:"permissions"`
+			UsageLimit  json.RawMessage `json:"usage_limit"`
+			ExtendDays  *int            `json:"extend_days"`
 		}
-		if decodeJSON(r, &input) != nil || len(input.Permissions) == 0 || len(input.Permissions) > len(applicationKeyPermissions) {
-			fail(w, http.StatusUnprocessableEntity, "select at least one supported permission")
+		if decodeJSON(r, &input) != nil {
+			fail(w, http.StatusUnprocessableEntity, "invalid key update")
 			return
 		}
-		seen := map[string]bool{}
-		for _, permission := range input.Permissions {
-			if !applicationKeyPermissions[permission] || seen[permission] {
-				fail(w, http.StatusUnprocessableEntity, "permissions contains an unsupported or duplicate value")
+		if input.Permissions == nil && len(input.UsageLimit) == 0 && input.ExtendDays == nil {
+			fail(w, http.StatusUnprocessableEntity, "provide permissions, usage_limit, or extend_days")
+			return
+		}
+		var permissionsJSON []byte
+		if input.Permissions != nil {
+			if len(*input.Permissions) == 0 || len(*input.Permissions) > len(applicationKeyPermissions) {
+				fail(w, http.StatusUnprocessableEntity, "select at least one supported permission")
 				return
 			}
-			seen[permission] = true
+			seen := map[string]bool{}
+			for _, permission := range *input.Permissions {
+				if !applicationKeyPermissions[permission] || seen[permission] {
+					fail(w, http.StatusUnprocessableEntity, "permissions contains an unsupported or duplicate value")
+					return
+				}
+				seen[permission] = true
+			}
+			permissionsJSON, _ = json.Marshal(*input.Permissions)
 		}
-		permissions, _ := json.Marshal(input.Permissions)
-		tag, err := s.db.Exec(r.Context(), `UPDATE application_keys SET permissions=$1 WHERE id=$2 AND application_id=$3 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now())`, permissions, parts[2], appID)
-		if err != nil || tag.RowsAffected() != 1 {
+		var usageLimit any
+		if len(input.UsageLimit) > 0 {
+			if string(input.UsageLimit) != "null" {
+				var limit int64
+				if json.Unmarshal(input.UsageLimit, &limit) != nil || limit < 1 || limit > 1000000000 {
+					fail(w, http.StatusUnprocessableEntity, "usage_limit must be null for unlimited or between 1 and 1000000000")
+					return
+				}
+				usageLimit = limit
+			}
+		}
+		if input.ExtendDays != nil && *input.ExtendDays != 7 && *input.ExtendDays != 30 && *input.ExtendDays != 90 && *input.ExtendDays != 180 && *input.ExtendDays != 365 {
+			fail(w, http.StatusUnprocessableEntity, "extend_days must be 7, 30, 90, 180, or 365")
+			return
+		}
+		var extendDays any
+		if input.ExtendDays != nil { extendDays = *input.ExtendDays }
+		var expiresAt *time.Time
+		var usageCount int64
+		var savedUsageLimit *int64
+		err := s.db.QueryRow(r.Context(), `UPDATE application_keys SET
+			permissions=CASE WHEN $1 THEN $2::jsonb ELSE permissions END,
+			usage_limit=CASE WHEN $3 THEN $4::bigint ELSE usage_limit END,
+			expires_at=CASE WHEN $5 THEN GREATEST(COALESCE(expires_at,now()),now()) + make_interval(days=>$6) ELSE expires_at END
+			WHERE id=$7 AND application_id=$8 AND revoked_at IS NULL
+			RETURNING expires_at,usage_count,usage_limit`, input.Permissions != nil, permissionsJSON, len(input.UsageLimit) > 0, usageLimit, input.ExtendDays != nil, extendDays, parts[2], appID).Scan(&expiresAt, &usageCount, &savedUsageLimit)
+		if err != nil {
 			fail(w, http.StatusNotFound, "active application key not found")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"status": true, "data": map[string]any{"key_id": parts[2], "permissions": input.Permissions}})
+		writeJSON(w, http.StatusOK, map[string]any{"status": true, "data": map[string]any{"key_id": parts[2], "permissions": input.Permissions, "expires_at": expiresAt, "usage_count": usageCount, "usage_limit": savedUsageLimit}})
 		return
 	}
 	fail(w, http.StatusMethodNotAllowed, "method not allowed")
