@@ -11,8 +11,21 @@ import (
 
 const schema = `
 CREATE TABLE IF NOT EXISTS applications (
- id text PRIMARY KEY, name text NOT NULL, key_hash text NOT NULL, status text NOT NULL DEFAULT 'ACTIVE', created_at timestamptz NOT NULL DEFAULT now()
+ id text PRIMARY KEY, name text NOT NULL, key_hash text, status text NOT NULL DEFAULT 'ACTIVE', created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS application_keys (
+ id text PRIMARY KEY, application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+ label text NOT NULL, environment text NOT NULL, key_prefix text NOT NULL, key_hash text NOT NULL UNIQUE,
+ permissions jsonb NOT NULL DEFAULT '[]'::jsonb, expires_at timestamptz, last_used_at timestamptz,
+ revoked_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS application_keys_app_idx ON application_keys(application_id,created_at DESC);
+INSERT INTO application_keys(id,application_id,label,environment,key_prefix,key_hash,permissions)
+ SELECT 'legacy:'||id,id,'Legacy application key','CLIENT','legacy',key_hash,
+ '["application.read","assets.read","assets.upload","assets.delete","references.read","references.write","grants.manage"]'::jsonb
+ FROM applications WHERE key_hash IS NOT NULL ON CONFLICT(key_hash) DO NOTHING;
+ALTER TABLE applications ALTER COLUMN key_hash DROP NOT NULL;
+UPDATE applications SET key_hash=NULL WHERE key_hash IS NOT NULL;
 CREATE TABLE IF NOT EXISTS assets (
  id text PRIMARY KEY, owner_application_id text NOT NULL REFERENCES applications(id), original_filename text NOT NULL,
  mime_type text NOT NULL, size_bytes bigint NOT NULL, checksum text NOT NULL, storage_key text NOT NULL,
@@ -60,6 +73,15 @@ func BootstrapApp(ctx context.Context, db *pgxpool.Pool, id, key string) error {
 	id = strings.TrimSpace(id)
 	if id == "" || len(key) < 32 { return errBootstrapKey }
 	h := sha256.Sum256([]byte(key))
-	_, err := db.Exec(ctx, `INSERT INTO applications(id,name,key_hash,status) VALUES($1,$1,$2,'ACTIVE') ON CONFLICT(id) DO NOTHING`, id, hex.EncodeToString(h[:]))
+	keyHash := hex.EncodeToString(h[:])
+	tag, err := db.Exec(ctx, `INSERT INTO applications(id,name,key_hash,status) VALUES($1,$1,$2,'ACTIVE') ON CONFLICT(id) DO NOTHING`, id, keyHash)
+	if err != nil { return err }
+	if tag.RowsAffected() == 0 { return nil }
+	_, err = db.Exec(ctx, `INSERT INTO application_keys(id,application_id,label,environment,key_prefix,key_hash,permissions)
+		SELECT 'bootstrap:'||id,id,'Bootstrap key','CLIENT','legacy',$2,
+		'["application.read","assets.read","assets.upload","assets.delete","references.read","references.write","grants.manage"]'::jsonb
+		FROM applications WHERE id=$1 AND NOT EXISTS(SELECT 1 FROM application_keys WHERE key_hash=$2)`, id, keyHash)
+	if err != nil { return err }
+	_, err = db.Exec(ctx, `UPDATE applications SET key_hash=NULL WHERE id=$1 AND key_hash=$2`, id, keyHash)
 	return err
 }

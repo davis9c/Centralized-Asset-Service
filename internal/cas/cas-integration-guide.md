@@ -29,9 +29,24 @@ CAS_APPLICATION_KEY=<application-key-dari-admin-CAS>
 - `CAS_BASE_URL` adalah origin CAS, tanpa path API. Contoh: `https://cas.example.com`.
 - `CAS_APPLICATION_KEY` adalah key aplikasi yang dibuat dari Dashboard CAS. Simpan sebagai secret server-side.
 - Setiap request aplikasi terautentikasi mengirim header `X-Application-Key`.
+- Satu aplikasi dapat memiliki beberapa key dengan scope berbeda; tiap key dapat memiliki tanggal kedaluwarsa dan dapat dicabut tanpa mencabut key lain.
 - Jangan menggunakan application key untuk login admin. Login admin menggunakan UserGate dan merupakan alur terpisah.
 - Gunakan koneksi HTTPS di luar development lokal.
 - Batas upload default CAS adalah 50 MiB dan dapat diubah melalui `CAS_MAX_UPLOAD_BYTES` di server CAS. Batas reverse proxy dan server aplikasi pemanggil juga harus mengizinkan ukuran yang diperlukan.
+
+Scope key membatasi endpoint sebelum pemeriksaan ownership/grant aset. Scope yang tersedia:
+
+| Scope | Endpoint/aksi |
+|---|---|
+| `application.read` | `GET /api/v1/applications/me` |
+| `assets.read` | Daftar aset, metadata, download/stream konten |
+| `assets.upload` | `POST /api/v1/assets` |
+| `assets.delete` | Penghapusan logis dan pembatalannya |
+| `references.read` | Membaca daftar reference |
+| `references.write` | Membuat/menonaktifkan reference |
+| `grants.manage` | Membaca, memberi, dan mencabut grant |
+
+Setelah scope key lolos, CAS tetap menerapkan ownership dan grant aset. Scope tidak memberikan akses lintas aplikasi dengan sendirinya.
 
 ## Autentikasi dan format umum
 

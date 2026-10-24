@@ -38,14 +38,18 @@ Semua endpoint API di bawah memakai JSON response dengan `status`, `message`, da
 | POST | `/api/v1/assets/{id}/cancel-deletion` | Membatalkan sebelum purge dimulai |
 | GET/POST/DELETE | `/api/v1/assets/{id}/references` | Membaca, menambahkan, atau menonaktifkan referensi |
 | GET/POST/DELETE | `/api/v1/assets/{id}/grants` | Membaca, memberi atau mencabut izin |
-| GET/POST | `/api/v1/admin/applications` | Daftar dan registrasi aplikasi; key hanya dikembalikan saat dibuat |
+| GET/POST | `/api/v1/admin/applications` | Daftar dan registrasi aplikasi |
 | PATCH | `/api/v1/admin/applications/{id}` | Status `ACTIVE`, `DISABLED`, atau `RETIRED` |
+| GET/POST | `/api/v1/admin/applications/{id}/keys` | Daftar dan buat API key dengan label, lingkungan, izin, dan masa aktif |
+| DELETE | `/api/v1/admin/applications/{id}/keys/{key_id}` | Cabut satu API key tanpa mencabut key lain |
 | GET | `/api/v1/admin/assets` | Explorer metadata terbatas (maksimum 200) |
 | GET | `/api/v1/admin/audit` | Audit terbaru (maksimum 200) |
 
 Untuk mencabut grant: `DELETE /api/v1/assets/{id}/grants?grant_id=...`. Untuk menonaktifkan reference milik aplikasi pemanggil: `DELETE /api/v1/assets/{id}/references?reference_id=...`.
 
 Actions grant yang tersedia: `metadata.read`, `content.read`, `reference.read`, `reference.create`. Pemilik mendapat akses ke asetnya. Aplikasi penerima memerlukan grant aktif; saat aset menunggu penghapusan, akses penerima hanya berjalan jika ia juga memiliki reference aktif. Tambahkan `?inline=true` pada endpoint content untuk preview gambar, audio, video, dan PDF yang telah diotorisasi.
+
+Setiap aplikasi dapat memiliki banyak API key. Tiap key memiliki label, lingkungan (`DEV`, `TEST`, atau `PRODUCTION`), permission scope, waktu terakhir dipakai, dan masa aktif 7/30/90/180/365 hari atau tanpa kedaluwarsa. Secret dibuat acak kriptografis, hanya hash SHA-256 disimpan, nilai lengkap hanya ditampilkan sekali, dan key dapat dicabut satu per satu. Scope yang tersedia: `application.read`, `assets.read`, `assets.upload`, `assets.delete`, `references.read`, `references.write`, `grants.manage`. Key lama dimigrasikan sebagai key `Legacy` dengan akses penuh agar tetap berfungsi; buat pengganti yang lebih terbatas lalu cabut legacy key melalui manajemen key.
 
 CAS Tester menjadi workspace aset untuk application key yang aktif: menampilkan daftar aset milik aplikasi (pencarian, filter status, dan pagination), upload manual, unduh, lihat metadata, serta ajukan penghapusan logis. Workspace juga menampilkan contoh API cURL/JavaScript. Mode tema mengikuti sistem secara default dan dapat diganti ke terang/gelap. Tester integrasi tetap menjalankan health check dan validasi key, mendukung file pilihan atau file contoh, lalu memeriksa upload, metadata, ukuran, checksum SHA-256, serta download. Laporan JSON tidak menyertakan application key. Penghapusan logis tidak menghapus file fisik karena purge fisik belum tersedia.
 

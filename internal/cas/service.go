@@ -15,12 +15,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type UserGate struct { BaseURL, APIKey string }
 type Service struct { db *pgxpool.Pool; storage string; maxUpload int64; userGate UserGate }
-type actor struct { AppID string; Admin bool; UserID string; Role string }
+type actor struct { AppID string; Admin bool; UserID string; Role string; KeyID string; Permissions []string }
 type ctxKey int
 const actorKey ctxKey = 1
 var userGateHTTP = &http.Client{Timeout: 5 * time.Second}
@@ -77,6 +78,12 @@ func (s *Service) route(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if strings.HasPrefix(r.URL.Path,"/api/v1/admin/") { a,err=s.authenticateAdmin(r) } else { a,err=s.authenticateApp(r) }
 	if err != nil { if err.Error()=="forbidden" { fail(w,403,"forbidden") } else { fail(w,401,"unauthorized") }; return }
+	if a.Role=="" {
+		if permission:=requiredApplicationPermission(r); permission!="" && !hasApplicationPermission(a,permission) {
+			fail(w,http.StatusForbidden,"application key lacks required permission: "+permission)
+			return
+		}
+	}
 	r = contextWithActor(r,a)
 	switch {
 	case r.Method==http.MethodPost && r.URL.Path=="/api/v1/assets": s.upload(w,r,a)
@@ -85,6 +92,7 @@ func (s *Service) route(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(r.URL.Path,"/api/v1/assets/"): s.assetRoutes(w,r,a)
 	case strings.HasPrefix(r.URL.Path,"/api/v1/admin/local-users") && a.Role=="SUPER_ADMIN": s.adminLocalUsers(w,r)
 	case r.URL.Path=="/api/v1/admin/applications" && ((r.Method==http.MethodGet && validLocalRole(a.Role)) || (r.Method==http.MethodPost && a.Admin)): s.adminApplications(w,r)
+	case strings.HasPrefix(r.URL.Path,"/api/v1/admin/applications/") && strings.Contains(r.URL.Path,"/keys") && a.Admin: s.adminApplicationKeys(w,r)
 	case strings.HasPrefix(r.URL.Path,"/api/v1/admin/applications/") && a.Admin: s.adminApplication(w,r)
 	case r.URL.Path=="/api/v1/admin/assets" && r.Method==http.MethodGet && validLocalRole(a.Role): s.adminAssets(w,r)
 	case r.URL.Path=="/api/v1/admin/audit" && r.Method==http.MethodGet && validLocalRole(a.Role): s.adminAudit(w,r)
@@ -93,10 +101,21 @@ func (s *Service) route(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Service) authenticateApp(r *http.Request) (actor,error) {
 	key:=r.Header.Get("X-Application-Key"); if len(key)<32 { return actor{},fmt.Errorf("unauthorized") }
-	h:=sha256.Sum256([]byte(key)); var id,status string
-	err:=s.db.QueryRow(r.Context(),`SELECT id,status FROM applications WHERE key_hash=$1`,hex.EncodeToString(h[:])).Scan(&id,&status)
-	if err!=nil || status!="ACTIVE" { return actor{},fmt.Errorf("unauthorized") }
-	return actor{AppID:id},nil
+	h:=sha256.Sum256([]byte(key)); keyHash:=hex.EncodeToString(h[:])
+	var keyID, appID string
+	var rawPermissions []byte
+	err:=s.db.QueryRow(r.Context(),`SELECT k.id,k.application_id,k.permissions FROM application_keys k JOIN applications a ON a.id=k.application_id WHERE k.key_hash=$1 AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at>now()) AND a.status='ACTIVE'`,keyHash).Scan(&keyID,&appID,&rawPermissions)
+	if err==nil {
+		var permissions []string
+		if json.Unmarshal(rawPermissions,&permissions)!=nil { return actor{},fmt.Errorf("unauthorized") }
+		_,_=s.db.Exec(r.Context(),`UPDATE application_keys SET last_used_at=now() WHERE id=$1`,keyID)
+		return actor{AppID:appID,KeyID:keyID,Permissions:permissions},nil
+	}
+	if err!=pgx.ErrNoRows { return actor{},fmt.Errorf("unauthorized") }
+	var appStatus string
+	err=s.db.QueryRow(r.Context(),`SELECT id,status FROM applications WHERE key_hash=$1`,keyHash).Scan(&appID,&appStatus)
+	if err!=nil || appStatus!="ACTIVE" { return actor{},fmt.Errorf("unauthorized") }
+	return actor{AppID:appID,KeyID:"legacy",Permissions:[]string{"application.read","assets.read","assets.upload","assets.delete","references.read","references.write","grants.manage"}},nil
 }
 func (s *Service) authenticateAdmin(r *http.Request) (actor,error) {
 	if s.userGate.APIKey=="" { return actor{},fmt.Errorf("admin auth not configured") }
@@ -159,7 +178,32 @@ func (s *Service) grants(w http.ResponseWriter,r *http.Request,a actor,id string
 func validAction(a string)bool{switch a{case "metadata.read","content.read","reference.read","reference.create":return true};return false}
 func (s *Service) refreshDeleteState(r *http.Request,id string){var count int;_ = s.db.QueryRow(r.Context(),`SELECT count(*) FROM asset_references WHERE asset_id=$1 AND active`,id).Scan(&count);if count==0{_,_=s.db.Exec(r.Context(),`UPDATE assets SET status='DELETE_PENDING' WHERE id=$1 AND status='DELETE_BLOCKED'`,id)}}
 func (s *Service) adminAssets(w http.ResponseWriter,r *http.Request){rows,e:=s.db.Query(r.Context(),`SELECT id,owner_application_id,original_filename,mime_type,size_bytes,checksum,storage_key,status,metadata FROM assets ORDER BY created_at DESC LIMIT 200`);if e!=nil{fail(w,500,"assets unavailable");return};defer rows.Close();out:=[]map[string]any{};for rows.Next(){var x asset;if rows.Scan(&x.ID,&x.Owner,&x.Name,&x.MIME,&x.Size,&x.Checksum,&x.Storage,&x.Status,&x.Metadata)==nil{out=append(out,assetJSON(x))}};writeJSON(w,200,map[string]any{"data":out})}
-func (s *Service) adminApplications(w http.ResponseWriter,r *http.Request){if r.Method=="GET"{rows,e:=s.db.Query(r.Context(),`SELECT id,name,status,created_at FROM applications ORDER BY created_at DESC`);if e!=nil{fail(w,500,"applications unavailable");return};defer rows.Close();out:=[]map[string]any{};for rows.Next(){var id,name,status string;var created time.Time;if rows.Scan(&id,&name,&status,&created)==nil{out=append(out,map[string]any{"application_id":id,"name":name,"status":status,"created_at":created})}};writeJSON(w,200,map[string]any{"data":out});return};if r.Method!="POST"{fail(w,405,"method not allowed");return};var in struct{ID string `json:"application_id"`;Name string `json:"name"`};if decodeJSON(r,&in)!=nil||strings.TrimSpace(in.ID)==""||strings.TrimSpace(in.Name)==""||len(in.ID)>100||len(in.Name)>150{fail(w,422,"application_id and name are required");return};key:=make([]byte,32);if _,e:=rand.Read(key);e!=nil{fail(w,500,"credential could not be generated");return};plain:=hex.EncodeToString(key);sum:=sha256.Sum256([]byte(plain));_,e:=s.db.Exec(r.Context(),`INSERT INTO applications(id,name,key_hash,status) VALUES($1,$2,$3,'ACTIVE')`,in.ID,in.Name,hex.EncodeToString(sum[:]));if e!=nil{fail(w,409,"application id already exists");return};a:=r.Context().Value(actorKey).(actor);s.audit(r,a,"application.create","","success");writeJSON(w,201,map[string]any{"status":true,"data":map[string]string{"application_id":in.ID,"name":in.Name,"status":"ACTIVE","application_key":plain},"message":"Simpan application_key sekarang; kunci hanya ditampilkan satu kali."})}
+func (s *Service) adminApplications(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		rows, err := s.db.Query(r.Context(), `SELECT id,name,status,created_at FROM applications ORDER BY created_at DESC`)
+		if err != nil { fail(w, 500, "applications unavailable"); return }
+		defer rows.Close()
+		out := []map[string]any{}
+		for rows.Next() {
+			var id, name, status string
+			var created time.Time
+			if rows.Scan(&id, &name, &status, &created) == nil { out = append(out, map[string]any{"application_id": id, "name": name, "status": status, "created_at": created}) }
+		}
+		writeJSON(w, 200, map[string]any{"data": out})
+		return
+	}
+	if r.Method != http.MethodPost { fail(w, 405, "method not allowed"); return }
+	var in struct { ID string `json:"application_id"`; Name string `json:"name"` }
+	if decodeJSON(r, &in) != nil || strings.TrimSpace(in.ID) == "" || strings.TrimSpace(in.Name) == "" || len(in.ID) > 100 || len(in.Name) > 150 {
+		fail(w, 422, "application_id and name are required")
+		return
+	}
+	_, err := s.db.Exec(r.Context(), `INSERT INTO applications(id,name,status) VALUES($1,$2,'ACTIVE')`, strings.TrimSpace(in.ID), strings.TrimSpace(in.Name))
+	if err != nil { fail(w, 409, "application id already exists"); return }
+	a := r.Context().Value(actorKey).(actor)
+	s.audit(r, a, "application.create", "", "success")
+	writeJSON(w, 201, map[string]any{"status": true, "data": map[string]string{"application_id": strings.TrimSpace(in.ID), "name": strings.TrimSpace(in.Name), "status": "ACTIVE"}, "message": "Application created; create an API key with the required permissions."})
+}
 func (s *Service) adminApplication(w http.ResponseWriter,r *http.Request){id:=strings.TrimPrefix(r.URL.Path,"/api/v1/admin/applications/");if id==""||strings.Contains(id,"/"){fail(w,404,"application not found");return};if r.Method!="PATCH"{fail(w,405,"method not allowed");return};var in struct{Status string `json:"status"`};if decodeJSON(r,&in)!=nil||(in.Status!="ACTIVE"&&in.Status!="DISABLED"&&in.Status!="RETIRED"){fail(w,422,"status must be ACTIVE, DISABLED, or RETIRED");return};tag,e:=s.db.Exec(r.Context(),`UPDATE applications SET status=$2 WHERE id=$1`,id,in.Status);if e!=nil||tag.RowsAffected()!=1{fail(w,404,"application not found");return};a:=r.Context().Value(actorKey).(actor);s.audit(r,a,"application.status.update","","success");writeJSON(w,200,map[string]string{"application_id":id,"status":in.Status})}
 func (s *Service) adminAudit(w http.ResponseWriter,r *http.Request){rows,e:=s.db.Query(r.Context(),`SELECT id,actor_application_id,action,asset_id,result,request_id,created_at FROM audit_events ORDER BY created_at DESC LIMIT 200`);if e!=nil{fail(w,500,"audit unavailable");return};defer rows.Close();out:=[]map[string]any{};for rows.Next(){var id,actor,action,result,rid string;var assetID *string;var created time.Time;if rows.Scan(&id,&actor,&action,&assetID,&result,&rid,&created)==nil{out=append(out,map[string]any{"id":id,"actor":actor,"action":action,"asset_id":assetID,"result":result,"request_id":rid,"created_at":created})}};writeJSON(w,200,map[string]any{"data":out})}
 func (s *Service) audit(r *http.Request,a actor,action,assetID,result string){rid:=r.Header.Get("X-Request-ID");if rid==""{rid=newID()};_,_=s.db.Exec(r.Context(),`INSERT INTO audit_events(id,actor_application_id,action,asset_id,result,request_id) VALUES($1,$2,$3,$4,$5,$6)`,newID(),actorName(a),action,assetID,result,rid)}
