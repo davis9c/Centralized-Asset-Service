@@ -25,7 +25,7 @@
     <header><div class="brand"><div class="mark">CAS</div><div><h1>Centralized Asset Service</h1><div class="sub">Admin console</div></div></div><div class="pill"><span class="dot"></span> API service</div></header>
     <main>
       <section class="intro"><div><div class="eyebrow">Administration</div><h2>Manajemen aplikasi</h2><p>Daftarkan aplikasi pemanggil CAS dan kendalikan status aksesnya.</p></div><button id="logout" class="secondary" hidden>Keluar</button></section>
-      <section class="card auth"><div class="authrow"><div class="field"><label for="token">UserGate access token</label><input id="token" type="password" autocomplete="off" placeholder="Tempel access token admin" spellcheck="false"></div><button id="connect">Hubungkan</button></div><p class="hint">Token hanya disimpan di memori halaman ini. UserGate memvalidasi peran SUPER_ADMIN melalui server CAS.</p><div id="authNotice" class="notice" role="status"></div></section>
+      <section class="card auth"><form id="loginForm"><div class="authrow"><div class="field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required placeholder="Username UserGate"></div><div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required placeholder="Password UserGate"></div><button id="loginButton" type="submit">Masuk</button></div></form><p class="hint">CAS menggunakan autentikasi UserGate. Jika belum ada SUPER Admin CAS, user pertama yang berhasil login akan mendapat peran tersebut.</p><div id="authNotice" class="notice" role="status"></div></section>
       <div id="workspace" hidden>
         <section class="card create"><h3>Daftarkan aplikasi</h3><form id="createForm" class="creategrid"><div class="field"><label for="appId">Application ID</label><input id="appId" maxlength="100" required placeholder="mis. billing-service"></div><div class="field"><label for="appName">Nama aplikasi</label><input id="appName" maxlength="150" required placeholder="mis. Billing Service"></div><button type="submit">Buat aplikasi</button></form><div id="keybox" class="keybox" hidden><strong>Kunci aplikasi baru — salin sekarang, kunci tidak ditampilkan lagi.</strong><div class="keyline"><code id="newKey"></code><button id="copyKey" class="secondary" type="button">Salin kunci</button></div></div><div id="createNotice" class="notice" role="status"></div></section>
         <section><div class="sectionhead"><h3>Aplikasi terdaftar</h3><span id="count" class="count"></span></div><div id="apps" class="card list"><div class="empty">Hubungkan untuk memuat aplikasi.</div></div></section>
@@ -66,14 +66,19 @@
         }
       }
       async function loadApps() { $('apps').classList.add('loading'); try { const result=await api('/api/v1/admin/applications'); renderApps(result.data || []); } finally { $('apps').classList.remove('loading'); } }
-      $('connect').addEventListener('click', async () => {
-        accessToken=$('token').value.trim(); if (!accessToken) { notice(authNotice,'Masukkan access token UserGate.','error'); return; }
-        $('connect').disabled=true; clearNotice(authNotice);
-        try { await loadApps(); $('workspace').hidden=false; $('logout').hidden=false; $('token').value=''; $('token').disabled=true; $('connect').hidden=true; notice(authNotice,'Berhasil terhubung ke CAS.','success'); }
-        catch (error) { accessToken=''; notice(authNotice,`${error.message} Pastikan token aktif dan memiliki peran SUPER_ADMIN.`, 'error'); }
-        finally { $('connect').disabled=false; }
+      $('loginForm').addEventListener('submit', async (event) => {
+        event.preventDefault(); clearNotice(authNotice); const button=$('loginButton'); button.disabled=true;
+        try {
+          const response=await fetch('/api/v1/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('username').value.trim(),password:$('password').value})});
+          let result; try { result=await response.json(); } catch { throw new Error('Respons server tidak valid.'); }
+          $('password').value=''; if(!response.ok)throw new Error(result.message||`Login gagal (${response.status}).`);
+          accessToken=result.data.access_token; await loadApps(); $('workspace').hidden=false; $('logout').hidden=false; $('username').disabled=true; $('password').disabled=true; button.hidden=true;
+          const displayName=result.data.user.full_name||result.data.user.username||result.data.user.id; notice(authNotice,`Berhasil masuk sebagai ${displayName}.`,'success');
+        }
+        catch (error) { accessToken=''; notice(authNotice,error.message,'error'); }
+        finally { button.disabled=false; }
       });
-      $('logout').addEventListener('click', () => { accessToken=''; $('token').value=''; $('token').disabled=false; $('connect').hidden=false; $('workspace').hidden=true; $('logout').hidden=true; $('apps').replaceChildren(); clearNotice(authNotice); });
+      $('logout').addEventListener('click', () => { accessToken=''; $('password').value=''; $('username').disabled=false; $('password').disabled=false; $('loginButton').hidden=false; $('workspace').hidden=true; $('logout').hidden=true; $('apps').replaceChildren(); clearNotice(authNotice); });
       $('createForm').addEventListener('submit', async (event) => {
         event.preventDefault(); clearNotice($('createNotice')); $('keybox').hidden=true;
         const button=event.currentTarget.querySelector('button[type="submit"]'); button.disabled=true;

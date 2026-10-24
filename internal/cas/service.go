@@ -47,6 +47,10 @@ func (s *Service) Handler() http.Handler {
 	return requestID(securityHeaders(mux))
 }
 func (s *Service) route(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/admin/login" {
+		s.adminLogin(w, r)
+		return
+	}
 	var a actor
 	var err error
 	if strings.HasPrefix(r.URL.Path,"/api/v1/admin/") { a,err=s.authenticateAdmin(r) } else { a,err=s.authenticateApp(r) }
@@ -72,13 +76,12 @@ func (s *Service) authenticateApp(r *http.Request) (actor,error) {
 func (s *Service) authenticateAdmin(r *http.Request) (actor,error) {
 	if s.userGate.APIKey=="" { return actor{},fmt.Errorf("admin auth not configured") }
 	token:=strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"),"Bearer ")); if token=="" { return actor{},fmt.Errorf("missing token") }
-	req,err:=http.NewRequestWithContext(r.Context(),"GET",s.userGate.BaseURL+"/auth/me",nil); if err!=nil{return actor{},err}
-	req.Header.Set("Authorization","Bearer "+token); req.Header.Set("X-API-Key",s.userGate.APIKey); req.Header.Set("Accept","application/json")
-	resp,err:=userGateHTTP.Do(req); if err!=nil{return actor{},err}; defer resp.Body.Close(); if resp.StatusCode!=200{return actor{},fmt.Errorf("invalid admin token")}
-	var body struct{ Data struct{ ID string `json:"id"`; Super bool `json:"is_super_admin"`; Roles []string `json:"roles"` } `json:"data"` }
-	if json.NewDecoder(http.MaxBytesReader(nil,resp.Body,1<<20)).Decode(&body)!=nil{return actor{},fmt.Errorf("invalid usergate response")}
-	admin:=body.Data.Super; for _,role:=range body.Data.Roles { if role=="SUPER_ADMIN" {admin=true} }; if !admin{return actor{},fmt.Errorf("forbidden")}
-	return actor{Admin:true,UserID:body.Data.ID},nil
+	user,err:=s.userGateMe(r.Context(),token); if err!=nil{return actor{},err}
+	var localAdmin bool
+	err=s.db.QueryRow(r.Context(),`SELECT EXISTS(SELECT 1 FROM cas_admins WHERE user_id=$1 AND role='SUPER_ADMIN')`,user.ID).Scan(&localAdmin)
+	if err!=nil{return actor{},err}
+	if !localAdmin&&!user.Super{return actor{},fmt.Errorf("forbidden")}
+	return actor{Admin:true,UserID:user.ID},nil
 }
 func (s *Service) upload(w http.ResponseWriter,r *http.Request,a actor) {
 	r.Body=http.MaxBytesReader(w,r.Body,s.maxUpload+(1<<20))

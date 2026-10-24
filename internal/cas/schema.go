@@ -35,6 +35,10 @@ CREATE TABLE IF NOT EXISTS audit_events (
  request_id text NOT NULL, created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS audit_created_idx ON audit_events(created_at DESC);
+CREATE TABLE IF NOT EXISTS cas_admins (
+ user_id text PRIMARY KEY, role text NOT NULL, created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS cas_one_super_admin ON cas_admins(role) WHERE role='SUPER_ADMIN';
 `
 
 func Migrate(ctx context.Context, db *pgxpool.Pool) error {
