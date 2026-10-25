@@ -22,6 +22,12 @@ CREATE TABLE IF NOT EXISTS application_keys (
 ALTER TABLE application_keys ADD COLUMN IF NOT EXISTS usage_count bigint NOT NULL DEFAULT 0;
 ALTER TABLE application_keys ADD COLUMN IF NOT EXISTS usage_limit bigint;
 CREATE INDEX IF NOT EXISTS application_keys_app_idx ON application_keys(application_id,created_at DESC);
+CREATE TABLE IF NOT EXISTS storage_nodes (
+ id text PRIMARY KEY, name text NOT NULL, base_url text NOT NULL, failure_domain text NOT NULL DEFAULT '',
+ status text NOT NULL DEFAULT 'ACTIVE', capacity_bytes bigint NOT NULL DEFAULT 0, used_bytes bigint NOT NULL DEFAULT 0,
+ reserved_bytes bigint NOT NULL DEFAULT 0, last_heartbeat_at timestamptz
+);
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS replica_target integer NOT NULL DEFAULT 1;
 INSERT INTO application_keys(id,application_id,label,environment,key_prefix,key_hash,permissions)
  SELECT 'legacy:'||id,id,'Legacy application key','CLIENT','legacy',key_hash,
  '["application.read","assets.read","assets.upload","assets.delete","references.read","references.write","grants.manage"]'::jsonb
@@ -34,6 +40,25 @@ CREATE TABLE IF NOT EXISTS assets (
  metadata jsonb NOT NULL DEFAULT '{}'::jsonb, status text NOT NULL DEFAULT 'ACTIVE', delete_requested_by text,
  delete_requested_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS storage_node_id text REFERENCES storage_nodes(id);
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS replica_target integer NOT NULL DEFAULT 1;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS storage_state text NOT NULL DEFAULT 'AVAILABLE';
+CREATE TABLE IF NOT EXISTS asset_replicas (
+ asset_id text NOT NULL REFERENCES assets(id) ON DELETE CASCADE, node_id text NOT NULL REFERENCES storage_nodes(id),
+ state text NOT NULL, checksum_sha256 text NOT NULL, size_bytes bigint NOT NULL, verified_at timestamptz,
+ last_error text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(asset_id,node_id)
+);
+CREATE TABLE IF NOT EXISTS storage_jobs (
+ id text PRIMARY KEY, asset_id text NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+ kind text NOT NULL, source_node_id text REFERENCES storage_nodes(id), target_node_id text REFERENCES storage_nodes(id),
+ state text NOT NULL DEFAULT 'PENDING', attempts integer NOT NULL DEFAULT 0, available_at timestamptz NOT NULL DEFAULT now(),
+ locked_at timestamptz, last_error text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS storage_jobs_ready_idx ON storage_jobs(state,available_at,created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS storage_jobs_one_replica_per_asset_idx ON storage_jobs(asset_id) WHERE kind='REPLICATE' AND state IN ('PENDING','RETRY','RUNNING');
+CREATE UNIQUE INDEX IF NOT EXISTS storage_jobs_one_drain_replica_per_asset_idx ON storage_jobs(asset_id) WHERE kind='DRAIN_REPLICATE' AND state IN ('PENDING','RETRY','RUNNING');
+CREATE UNIQUE INDEX IF NOT EXISTS storage_jobs_one_drain_delete_per_replica_idx ON storage_jobs(asset_id,source_node_id) WHERE kind='DRAIN_DELETE' AND state IN ('PENDING','RETRY','RUNNING');
 CREATE INDEX IF NOT EXISTS assets_owner_idx ON assets(owner_application_id, created_at DESC);
 CREATE TABLE IF NOT EXISTS asset_references (
  id text PRIMARY KEY, asset_id text NOT NULL REFERENCES assets(id), application_id text NOT NULL REFERENCES applications(id),

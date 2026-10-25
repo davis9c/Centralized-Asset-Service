@@ -260,7 +260,7 @@ curl --fail-with-body -X DELETE \
   -H "X-Application-Key: $CAS_APPLICATION_KEY"
 ```
 
-Respons `202` memberi `asset_status` berupa `DELETE_PENDING` atau `DELETE_BLOCKED` jika masih ada reference aktif. `POST /api/v1/assets/{asset_id}/cancel-deletion` dapat memulihkan status menjadi `ACTIVE` sebelum purge. **Penghapusan logis tidak menghapus file fisik.** CAS versi ini belum memiliki purge worker; jangan menyampaikan kepada pengguna akhir bahwa file sudah dihapus permanen.
+Respons `202` memberi `asset_status` berupa `DELETE_PENDING` atau `DELETE_BLOCKED` jika masih ada reference aktif. `POST /api/v1/assets/{asset_id}/cancel-deletion` dapat memulihkan status menjadi `ACTIVE` sebelum job penghapusan mulai pada node. Di cluster storage, CAS menutup pembacaan baru saat `DELETE_PENDING`, menghapus replika secara asinkron, lalu mengubah status ke `DELETED` setelah semua node mengonfirmasi. Untuk storage lokal lama, penghapusan fisik belum otomatis.
 
 ## Status HTTP dan penanganan error
 
