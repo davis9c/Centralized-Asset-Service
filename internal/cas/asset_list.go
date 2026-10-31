@@ -39,7 +39,7 @@ func (s *Service) listAssets(w http.ResponseWriter, r *http.Request, a actor) {
 		fail(w, http.StatusInternalServerError, "assets unavailable")
 		return
 	}
-	rows, err := s.db.Query(r.Context(), `SELECT id,owner_application_id,original_filename,mime_type,size_bytes,checksum,storage_key,status,metadata,created_at FROM assets WHERE owner_application_id=$1 AND ($2='' OR status=$2) AND ($3='' OR original_filename ILIKE $4 OR id ILIKE $4) ORDER BY created_at DESC,id DESC LIMIT $5 OFFSET $6`, a.AppID, status, query, filter, limit, offset)
+	rows, err := s.db.Query(r.Context(), `SELECT a.id,a.owner_application_id,a.original_filename,a.mime_type,a.size_bytes,a.checksum,a.storage_key,a.status,a.metadata,a.created_at,COALESCE(a.storage_node_id,''),a.storage_state,a.replica_target,(SELECT count(*) FROM asset_replicas r WHERE r.asset_id=a.id AND r.state='READY') FROM assets a WHERE a.owner_application_id=$1 AND ($2='' OR a.status=$2) AND ($3='' OR a.original_filename ILIKE $4 OR a.id ILIKE $4) ORDER BY a.created_at DESC,a.id DESC LIMIT $5 OFFSET $6`, a.AppID, status, query, filter, limit, offset)
 	if err != nil {
 		fail(w, http.StatusInternalServerError, "assets unavailable")
 		return
@@ -49,7 +49,7 @@ func (s *Service) listAssets(w http.ResponseWriter, r *http.Request, a actor) {
 	for rows.Next() {
 		var item asset
 		var created time.Time
-		if err := rows.Scan(&item.ID, &item.Owner, &item.Name, &item.MIME, &item.Size, &item.Checksum, &item.Storage, &item.Status, &item.Metadata, &created); err != nil {
+		if err := rows.Scan(&item.ID, &item.Owner, &item.Name, &item.MIME, &item.Size, &item.Checksum, &item.Storage, &item.Status, &item.Metadata, &created,&item.NodeID,&item.StorageState,&item.ReplicaTarget,&item.ReadyReplicas); err != nil {
 			fail(w, http.StatusInternalServerError, "assets unavailable")
 			return
 		}

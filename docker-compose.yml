@@ -13,11 +13,37 @@ services:
       USERGATE_API_KEY: ${USERGATE_API_KEY:-}
       CAS_MAX_UPLOAD_BYTES: ${CAS_MAX_UPLOAD_BYTES:-52428800}
       CAS_TESTER_ORIGIN: ${CAS_TESTER_ORIGIN:-null}
+      CAS_STORAGE_NODE_URL: ${CAS_STORAGE_NODE_URL:-}
+      CAS_STORAGE_NODES: "${CAS_STORAGE_NODES:-}"
+      CAS_STORAGE_NODE_ID: ${CAS_STORAGE_NODE_ID:-storage-1}
+      CAS_STORAGE_NODE_TOKEN: ${CAS_NODE_SERVICE_TOKEN:-}
+      CAS_STORAGE_NODE_CA_FILE: ${CAS_STORAGE_NODE_CA_FILE:-/certs/ca.crt}
+      CAS_NODE_MIN_FREE_BYTES: ${CAS_NODE_MIN_FREE_BYTES:-1048576}
+      CAS_STREAM_TIMEOUT_SECONDS: ${CAS_STREAM_TIMEOUT_SECONDS:-900}
     volumes:
       - cas_data:/data
+      - ./certs:/certs:ro
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+
+  storage-node:
+    build: .
+    profiles: ["storage"]
+    environment:
+      CAS_ROLE: storage-node
+      CAS_ADDR: ":8081"
+      CAS_STORAGE_DIR: /data
+      CAS_NODE_SERVICE_TOKEN: ${CAS_NODE_SERVICE_TOKEN:?Set CAS_NODE_SERVICE_TOKEN in .env}
+      CAS_NODE_TLS_CERT: /certs/node.crt
+      CAS_NODE_TLS_KEY: /certs/node.key
+      CAS_NODE_MAX_OBJECT_BYTES: ${CAS_NODE_MAX_OBJECT_BYTES:-10737418240}
+    volumes:
+      - cas_data:/data
+      - ./certs:/certs:ro
+    expose:
+      - "8081"
     restart: unless-stopped
 
   db:

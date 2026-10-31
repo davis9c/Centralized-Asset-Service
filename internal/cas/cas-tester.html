@@ -89,7 +89,7 @@
         </section>
         <section class="card">
           <div class="card-head"><div><h2>Aset aplikasi</h2><p id="assetSummary">Hubungkan application key untuk melihat aset milik aplikasi ini.</p></div><button id="refreshAssets" class="secondary" type="button" disabled>Refresh</button></div>
-          <div class="asset-filters"><input id="assetSearch" type="search" placeholder="Cari nama file atau asset ID" disabled><select id="assetStatus" aria-label="Filter status" disabled><option value="">Semua status</option><option>ACTIVE</option><option>DELETE_PENDING</option><option>DELETE_BLOCKED</option><option>PURGE_PENDING</option></select><button id="searchAssets" class="secondary" type="button" disabled>Cari</button></div>
+          <div class="asset-filters"><input id="assetSearch" type="search" placeholder="Cari nama file atau asset ID" disabled><select id="assetStatus" aria-label="Filter status" disabled><option value="">Semua status</option><option>ACTIVE</option><option>DELETE_PENDING</option><option>DELETE_BLOCKED</option><option>PURGE_PENDING</option><option>DELETED</option></select><button id="searchAssets" class="secondary" type="button" disabled>Cari</button></div>
           <div id="assetList" class="asset-list"><div class="empty">Belum terhubung.</div></div>
           <div class="pager"><span id="pageInfo">—</span><div><button id="prevPage" class="secondary" type="button" disabled>Sebelumnya</button><button id="nextPage" class="secondary" type="button" disabled>Berikutnya</button></div></div>
         </section>
@@ -110,11 +110,11 @@
         </section>
         <section class="card">
           <div class="card-head"><div><h2>Jalankan pemeriksaan</h2><p>Upload membuat aset yang tersimpan di CAS.</p></div><span class="step">03</span></div>
-          <div class="warning"><span>!</span><div><b>Perhatian: file uji tidak dihapus otomatis</b>CAS belum melakukan purge fisik. Setelah tes, Anda dapat mengajukan penghapusan logis dari halaman ini; file tetap berada di storage sampai proses purge tersedia.</div></div>
+          <div class="warning"><span>!</span><div><b>Penghapusan aset uji berjalan bertahap</b>Di cluster storage, CAS menghapus replika setelah tidak ada reference aktif. Status akhir tersedia pada daftar aset; storage lokal lama masih memerlukan pembersihan manual.</div></div>
           <label class="ack"><input id="ackStorage" type="checkbox" disabled><span>Saya memahami bahwa upload membuat aset tersimpan dan menggunakan environment development/test.</span></label>
           <div class="actions"><button id="runTest" disabled>Jalankan tes integrasi</button><button id="cancelTest" class="danger hidden" type="button">Batalkan</button></div>
           <div id="testNotice" class="notice" role="status" aria-live="polite"></div>
-          <div id="assetBox" class="assetbox hidden"><div class="id">Asset ID: <span id="assetId"></span></div><div class="assetmeta"><span id="assetFacts"></span><span id="assetState"></span></div><div class="actions"><button id="downloadAsset" class="secondary" type="button">Unduh lagi</button><button id="requestDelete" class="danger" type="button">Ajukan penghapusan logis</button></div><p class="micro">Penghapusan logis mengubah status aset. File fisik tidak langsung dihapus.</p></div>
+          <div id="assetBox" class="assetbox hidden"><div class="id">Asset ID: <span id="assetId"></span></div><div class="assetmeta"><span id="assetFacts"></span><span id="assetState"></span></div><div class="actions"><button id="downloadAsset" class="secondary" type="button">Unduh lagi</button><button id="requestDelete" class="danger" type="button">Ajukan penghapusan</button></div><p class="micro">Replika cluster dihapus asinkron setelah reference dinonaktifkan.</p></div>
         </section>
       </div>
       <aside class="stack">
@@ -453,8 +453,8 @@
         try{
           const result=await api(`/api/v1/assets/${encodeURIComponent(id)}`,{method:'DELETE'});
           const status=result.body?.data?.asset_status||'DELETE_PENDING';$('assetState').textContent=status;
-          notice('testNotice',`Penghapusan logis diajukan: ${status}. File fisik masih tersimpan sampai purge tersedia.`,'success');
-          log(`Permintaan penghapusan logis aset ${id}: ${status} (${result.requestId}).`,'OK');
+          notice('testNotice',`Penghapusan diajukan: ${status}. Periksa status aset dan job storage untuk hasil akhirnya.`,'success');
+          log(`Permintaan penghapusan aset ${id}: ${status} (${result.requestId}).`,'OK');
           button.disabled=true;button.textContent='Permintaan diajukan';
           assetCleanupRequested=true;updateRunButton();
           if(report){report.deletion_status=status;report.deletion_request_id=result.requestId}
